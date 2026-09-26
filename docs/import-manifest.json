@@ -1,0 +1,1364 @@
+[
+  {
+    "source": "README-1.md",
+    "destination": "archive/README-1.md",
+    "sha256_source": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f",
+    "sha256_imported": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f"
+  },
+  {
+    "source": "initial-package/.env.example",
+    "destination": "archive/initial-package/.env.example",
+    "sha256_source": "8a88c4413cc5f906084f97d0c87faf9314044115530b17e9f04fecaa59220e8e",
+    "sha256_imported": "8a88c4413cc5f906084f97d0c87faf9314044115530b17e9f04fecaa59220e8e"
+  },
+  {
+    "source": "initial-package/docker-compose.yml",
+    "destination": "archive/initial-package/docker-compose.yml",
+    "sha256_source": "6c23db8363a09b395259d60bfc3a974cad8fb96eb4f38cb864d698cc1c8e13ca",
+    "sha256_imported": "1045beee60124173488d941bea8a1e0550bf2e8350b8af435876cda925842bcd"
+  },
+  {
+    "source": "initial-package/Dockerfile",
+    "destination": "archive/initial-package/Dockerfile",
+    "sha256_source": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377",
+    "sha256_imported": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377"
+  },
+  {
+    "source": "initial-package/PROJECT_STATUS.md",
+    "destination": "archive/initial-package/PROJECT_STATUS.md",
+    "sha256_source": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99",
+    "sha256_imported": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99"
+  },
+  {
+    "source": "initial-package/README.md",
+    "destination": "archive/initial-package/README.md",
+    "sha256_source": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f",
+    "sha256_imported": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f"
+  },
+  {
+    "source": "initial-package/requirements.txt",
+    "destination": "archive/initial-package/requirements.txt",
+    "sha256_source": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f",
+    "sha256_imported": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f"
+  },
+  {
+    "source": "lavka/.env.example",
+    "destination": ".env.example",
+    "sha256_source": "8a88c4413cc5f906084f97d0c87faf9314044115530b17e9f04fecaa59220e8e",
+    "sha256_imported": "7bd6610561712620c4baab207128dafd73e3663b683f7fbd42bfa0b63155dcc8"
+  },
+  {
+    "source": "lavka/docker-compose.override.yml",
+    "destination": "docker-compose.override.yml",
+    "sha256_source": "6c9be060a4ce6934bac07490da2fb20cb13221d8b19eac2ba3eefb06cb86aed0",
+    "sha256_imported": "166ac2e0fbda7ca1bd8f7a711ff223ed3ef8ab94d964af95153852fbd4aef0f4"
+  },
+  {
+    "source": "lavka/docker-compose.yml",
+    "destination": "docker-compose.yml",
+    "sha256_source": "6c23db8363a09b395259d60bfc3a974cad8fb96eb4f38cb864d698cc1c8e13ca",
+    "sha256_imported": "1045beee60124173488d941bea8a1e0550bf2e8350b8af435876cda925842bcd"
+  },
+  {
+    "source": "lavka/Dockerfile",
+    "destination": "Dockerfile",
+    "sha256_source": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377",
+    "sha256_imported": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377"
+  },
+  {
+    "source": "lavka/PROJECT_STATUS.md",
+    "destination": "archive/server-docs/PROJECT_STATUS.md",
+    "sha256_source": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99",
+    "sha256_imported": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99"
+  },
+  {
+    "source": "lavka/README.md",
+    "destination": "archive/server-docs/README.md",
+    "sha256_source": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f",
+    "sha256_imported": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f"
+  },
+  {
+    "source": "lavka/requirements.txt",
+    "destination": "requirements.txt",
+    "sha256_source": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f",
+    "sha256_imported": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/.env.example",
+    "destination": "archive/lavka_backup_20260922_184606/.env.example",
+    "sha256_source": "8a88c4413cc5f906084f97d0c87faf9314044115530b17e9f04fecaa59220e8e",
+    "sha256_imported": "8a88c4413cc5f906084f97d0c87faf9314044115530b17e9f04fecaa59220e8e"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/docker-compose.yml",
+    "destination": "archive/lavka_backup_20260922_184606/docker-compose.yml",
+    "sha256_source": "6c23db8363a09b395259d60bfc3a974cad8fb96eb4f38cb864d698cc1c8e13ca",
+    "sha256_imported": "1045beee60124173488d941bea8a1e0550bf2e8350b8af435876cda925842bcd"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/Dockerfile",
+    "destination": "archive/lavka_backup_20260922_184606/Dockerfile",
+    "sha256_source": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377",
+    "sha256_imported": "2feb1cc5eadd19b1cdb2ee206f7789b68e351e5188e0e668647350434e0e1377"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/PROJECT_STATUS.md",
+    "destination": "archive/lavka_backup_20260922_184606/PROJECT_STATUS.md",
+    "sha256_source": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99",
+    "sha256_imported": "6f15350d17b42a51f2d942b3935709ea78e00fff03af66cc9b20f04b23f77c99"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/README.md",
+    "destination": "archive/lavka_backup_20260922_184606/README.md",
+    "sha256_source": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f",
+    "sha256_imported": "448c9910bd9b2e9d20a0e9ae5cff741b180b53b57e99a73639bbb9dbe7e44e4f"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/requirements.txt",
+    "destination": "archive/lavka_backup_20260922_184606/requirements.txt",
+    "sha256_source": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f",
+    "sha256_imported": "c2d0cfd6bed58ef13727b7798c41c910e295f22f096c9ea4c4d1b2d09bbd908f"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/bot.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/bot.py",
+    "sha256_source": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df",
+    "sha256_imported": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/config.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/config.py",
+    "sha256_source": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00",
+    "sha256_imported": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/db.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/db.py",
+    "sha256_source": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4",
+    "sha256_imported": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/main.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/main.py",
+    "sha256_source": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699",
+    "sha256_imported": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/models.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/models.py",
+    "sha256_source": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7",
+    "sha256_imported": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/schemas.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/schemas.py",
+    "sha256_source": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9",
+    "sha256_imported": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/__init__.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/__init__.py",
+    "sha256_source": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_imported": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/scripts/seed.py",
+    "destination": "archive/lavka_backup_20260922_184606/scripts/seed.py",
+    "sha256_source": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65",
+    "sha256_imported": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/static/app.js",
+    "destination": "archive/lavka_backup_20260922_184606/static/app.js",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/static/index.html",
+    "destination": "archive/lavka_backup_20260922_184606/static/index.html",
+    "sha256_source": "483f1d58048fb01aa7397451d70859df3ca2d06e04a4ae70369a6f1f6652d464",
+    "sha256_imported": "483f1d58048fb01aa7397451d70859df3ca2d06e04a4ae70369a6f1f6652d464"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/static/logo.jpg",
+    "destination": "archive/lavka_backup_20260922_184606/static/logo.jpg",
+    "sha256_source": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436",
+    "sha256_imported": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/static/styles.css",
+    "destination": "archive/lavka_backup_20260922_184606/static/styles.css",
+    "sha256_source": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9",
+    "sha256_imported": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/tests/test_referrals.py",
+    "destination": "archive/lavka_backup_20260922_184606/tests/test_referrals.py",
+    "sha256_source": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67",
+    "sha256_imported": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/services/cdek.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/services/cdek.py",
+    "sha256_source": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880",
+    "sha256_imported": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/services/payments.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/services/payments.py",
+    "sha256_source": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c",
+    "sha256_imported": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/services/referrals.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/services/referrals.py",
+    "sha256_source": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058",
+    "sha256_imported": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058"
+  },
+  {
+    "source": "lavka_backup_20260922_184606/app/services/telegram.py",
+    "destination": "archive/lavka_backup_20260922_184606/app/services/telegram.py",
+    "sha256_source": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608",
+    "sha256_imported": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608"
+  },
+  {
+    "source": "lavka-backups/photo-test-1790370139816025096/3d222f66d3cb4258a21fdd0fb62a127e.png",
+    "destination": "archive/lavka-backups/photo-test-1790370139816025096/3d222f66d3cb4258a21fdd0fb62a127e.png",
+    "sha256_source": "46838e51cd2edcd539cd6bdbec59a332d1123502db397b4007521e83a78cf9e8",
+    "sha256_imported": "46838e51cd2edcd539cd6bdbec59a332d1123502db397b4007521e83a78cf9e8"
+  },
+  {
+    "source": "lavka-backups/photos-1790369989469679312/docker-compose.yml",
+    "destination": "archive/lavka-backups/photos-1790369989469679312/docker-compose.yml",
+    "sha256_source": "6c23db8363a09b395259d60bfc3a974cad8fb96eb4f38cb864d698cc1c8e13ca",
+    "sha256_imported": "1045beee60124173488d941bea8a1e0550bf2e8350b8af435876cda925842bcd"
+  },
+  {
+    "source": "lavka-backups/uploads-1790370048105099793/docker-compose.yml",
+    "destination": "archive/lavka-backups/uploads-1790370048105099793/docker-compose.yml",
+    "sha256_source": "6c23db8363a09b395259d60bfc3a974cad8fb96eb4f38cb864d698cc1c8e13ca",
+    "sha256_imported": "1045beee60124173488d941bea8a1e0550bf2e8350b8af435876cda925842bcd"
+  },
+  {
+    "source": "lavka/app/bot.py",
+    "destination": "app/bot.py",
+    "sha256_source": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df",
+    "sha256_imported": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df"
+  },
+  {
+    "source": "lavka/app/config.py",
+    "destination": "app/config.py",
+    "sha256_source": "6095c8d3209d7af475e34220366b77b5550041a5eeb1942de6321831fbf90660",
+    "sha256_imported": "6095c8d3209d7af475e34220366b77b5550041a5eeb1942de6321831fbf90660"
+  },
+  {
+    "source": "lavka/app/config.py.bak-okt1-20260925_151433",
+    "destination": "archive/lavka/app/config.py.bak-okt1-20260925_151433",
+    "sha256_source": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00",
+    "sha256_imported": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00"
+  },
+  {
+    "source": "lavka/app/db.py",
+    "destination": "app/db.py",
+    "sha256_source": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4",
+    "sha256_imported": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4"
+  },
+  {
+    "source": "lavka/app/main.py",
+    "destination": "app/main.py",
+    "sha256_source": "6c34e7379f79e74ec0ced6b3a78c1d4f27ba3ca6ce85bd1c140ef5478d40aabc",
+    "sha256_imported": "6c34e7379f79e74ec0ced6b3a78c1d4f27ba3ca6ce85bd1c140ef5478d40aabc"
+  },
+  {
+    "source": "lavka/app/main.py.bak-before-cdek-restore-20260926_180206",
+    "destination": "archive/lavka/app/main.py.bak-before-cdek-restore-20260926_180206",
+    "sha256_source": "30787c30baffa2a075eee71486d7b336d4ea20a3025b27bea0ef730a355bc840",
+    "sha256_imported": "30787c30baffa2a075eee71486d7b336d4ea20a3025b27bea0ef730a355bc840"
+  },
+  {
+    "source": "lavka/app/main.py.bak-cdek-final-20260925_151943",
+    "destination": "archive/lavka/app/main.py.bak-cdek-final-20260925_151943",
+    "sha256_source": "25d12294facac78a650474ab3b9f746384f8dcc0a27a4c3c776565d8acaeb453",
+    "sha256_imported": "25d12294facac78a650474ab3b9f746384f8dcc0a27a4c3c776565d8acaeb453"
+  },
+  {
+    "source": "lavka/app/main.py.bak-cdek-mode-20260925_150758",
+    "destination": "archive/lavka/app/main.py.bak-cdek-mode-20260925_150758",
+    "sha256_source": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89",
+    "sha256_imported": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89"
+  },
+  {
+    "source": "lavka/app/main.py.bak-cdek-quote-20260926_055312",
+    "destination": "archive/lavka/app/main.py.bak-cdek-quote-20260926_055312",
+    "sha256_source": "bf8f5fb24f553d8cf23eaf19a5aa49a0f8869753ecbc8dfc92d8c04d34d2d250",
+    "sha256_imported": "bf8f5fb24f553d8cf23eaf19a5aa49a0f8869753ecbc8dfc92d8c04d34d2d250"
+  },
+  {
+    "source": "lavka/app/main.py.bak-city-prefix-fix-20260926_180751",
+    "destination": "archive/lavka/app/main.py.bak-city-prefix-fix-20260926_180751",
+    "sha256_source": "c864fe5627125129bb215cecd2b5ee6a15dd90a2b0e651d4f600bd0d655d6125",
+    "sha256_imported": "c864fe5627125129bb215cecd2b5ee6a15dd90a2b0e651d4f600bd0d655d6125"
+  },
+  {
+    "source": "lavka/app/main.py.bak-city-real-fix-20260926_175258",
+    "destination": "archive/lavka/app/main.py.bak-city-real-fix-20260926_175258",
+    "sha256_source": "b3ec9eb9ae9030a0d12e07a35449949c8c7fec590ed0ddb784fced1060f30d6d",
+    "sha256_imported": "b3ec9eb9ae9030a0d12e07a35449949c8c7fec590ed0ddb784fced1060f30d6d"
+  },
+  {
+    "source": "lavka/app/main.py.bak-city-suggest-20260926_172057",
+    "destination": "archive/lavka/app/main.py.bak-city-suggest-20260926_172057",
+    "sha256_source": "c864fe5627125129bb215cecd2b5ee6a15dd90a2b0e651d4f600bd0d655d6125",
+    "sha256_imported": "c864fe5627125129bb215cecd2b5ee6a15dd90a2b0e651d4f600bd0d655d6125"
+  },
+  {
+    "source": "lavka/app/main.py.bak-documents-20260925_192452",
+    "destination": "archive/lavka/app/main.py.bak-documents-20260925_192452",
+    "sha256_source": "659e115de55e23b2cade454c7c92a4287dc9fc43ff79dbcc36c01199ce5f38a4",
+    "sha256_imported": "659e115de55e23b2cade454c7c92a4287dc9fc43ff79dbcc36c01199ce5f38a4"
+  },
+  {
+    "source": "lavka/app/main.py.bak-email-20260925_184046",
+    "destination": "archive/lavka/app/main.py.bak-email-20260925_184046",
+    "sha256_source": "9b9dc747f867d0000fa425b96d1d6f0e348d43f15c8cbb08161f13bafd6c5646",
+    "sha256_imported": "9b9dc747f867d0000fa425b96d1d6f0e348d43f15c8cbb08161f13bafd6c5646"
+  },
+  {
+    "source": "lavka/app/main.py.bak-faq-20260925_203541",
+    "destination": "archive/lavka/app/main.py.bak-faq-20260925_203541",
+    "sha256_source": "63041ecd0e6d7a14903e03a6b3cd1f0bc00f092ce931c9f08bd70cf07049e6fb",
+    "sha256_imported": "63041ecd0e6d7a14903e03a6b3cd1f0bc00f092ce931c9f08bd70cf07049e6fb"
+  },
+  {
+    "source": "lavka/app/main.py.bak-receipt-20260925_180851",
+    "destination": "archive/lavka/app/main.py.bak-receipt-20260925_180851",
+    "sha256_source": "383767bdcfe7b7aa2082cfd9d034fbe279e6f7066f60d6b446c66f10ec5ff4a3",
+    "sha256_imported": "383767bdcfe7b7aa2082cfd9d034fbe279e6f7066f60d6b446c66f10ec5ff4a3"
+  },
+  {
+    "source": "lavka/app/main.py.bak-runtime-fix-20260926_181059",
+    "destination": "archive/lavka/app/main.py.bak-runtime-fix-20260926_181059",
+    "sha256_source": "111ee4b1de0aac9efec844e7cae43512cd983f0878b66d6a41afe8619d258c10",
+    "sha256_imported": "111ee4b1de0aac9efec844e7cae43512cd983f0878b66d6a41afe8619d258c10"
+  },
+  {
+    "source": "lavka/app/main.py.bak-sales-20260925_190735",
+    "destination": "archive/lavka/app/main.py.bak-sales-20260925_190735",
+    "sha256_source": "9d85110afaed135b3108b09d6b0afbaf2a899efa9be29e328672574775b9d5d2",
+    "sha256_imported": "9d85110afaed135b3108b09d6b0afbaf2a899efa9be29e328672574775b9d5d2"
+  },
+  {
+    "source": "lavka/app/main.py.bak-shortdesc-20260925_193731",
+    "destination": "archive/lavka/app/main.py.bak-shortdesc-20260925_193731",
+    "sha256_source": "6135bdba7466a8340cc44fbe40f98683042de83ea6f254adba19855ab5aa55fa",
+    "sha256_imported": "6135bdba7466a8340cc44fbe40f98683042de83ea6f254adba19855ab5aa55fa"
+  },
+  {
+    "source": "lavka/app/main.py.bak-upload-20260925_194750",
+    "destination": "archive/lavka/app/main.py.bak-upload-20260925_194750",
+    "sha256_source": "6135bdba7466a8340cc44fbe40f98683042de83ea6f254adba19855ab5aa55fa",
+    "sha256_imported": "6135bdba7466a8340cc44fbe40f98683042de83ea6f254adba19855ab5aa55fa"
+  },
+  {
+    "source": "lavka/app/main.py.bak_20260925_093527",
+    "destination": "archive/lavka/app/main.py.bak_20260925_093527",
+    "sha256_source": "c3b77aa47c12203a3483f2c9336e8d378a9b4ac777d91073f039614bdfba2470",
+    "sha256_imported": "c3b77aa47c12203a3483f2c9336e8d378a9b4ac777d91073f039614bdfba2470"
+  },
+  {
+    "source": "lavka/app/main.py.info2-backup-20260925-090949",
+    "destination": "archive/lavka/app/main.py.info2-backup-20260925-090949",
+    "sha256_source": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699",
+    "sha256_imported": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699"
+  },
+  {
+    "source": "lavka/app/main.py.offer-backup-20260925-092825",
+    "destination": "archive/lavka/app/main.py.offer-backup-20260925-092825",
+    "sha256_source": "8dc11f01647f2bc0cbdcd10754edbb3d80af56762806bfb0c53d13a0ce09cfc2",
+    "sha256_imported": "8dc11f01647f2bc0cbdcd10754edbb3d80af56762806bfb0c53d13a0ce09cfc2"
+  },
+  {
+    "source": "lavka/app/main.py.privacy-backup-20260925-092452",
+    "destination": "archive/lavka/app/main.py.privacy-backup-20260925-092452",
+    "sha256_source": "25c55cefdb14cf01eb01fd2aa39e78eaadc8078cae90f8ef510ab0916b68adad",
+    "sha256_imported": "25c55cefdb14cf01eb01fd2aa39e78eaadc8078cae90f8ef510ab0916b68adad"
+  },
+  {
+    "source": "lavka/app/models.py",
+    "destination": "app/models.py",
+    "sha256_source": "f9e9ec08063a0530ade8e13d82f4ae36a854180a635ae52df982d30b1668de94",
+    "sha256_imported": "f9e9ec08063a0530ade8e13d82f4ae36a854180a635ae52df982d30b1668de94"
+  },
+  {
+    "source": "lavka/app/models.py.bak-email-20260925_184046",
+    "destination": "archive/lavka/app/models.py.bak-email-20260925_184046",
+    "sha256_source": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054",
+    "sha256_imported": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054"
+  },
+  {
+    "source": "lavka/app/models.py.bak-shortdesc-20260925_193731",
+    "destination": "archive/lavka/app/models.py.bak-shortdesc-20260925_193731",
+    "sha256_source": "f9e9ec08063a0530ade8e13d82f4ae36a854180a635ae52df982d30b1668de94",
+    "sha256_imported": "f9e9ec08063a0530ade8e13d82f4ae36a854180a635ae52df982d30b1668de94"
+  },
+  {
+    "source": "lavka/app/schemas.py",
+    "destination": "app/schemas.py",
+    "sha256_source": "9ffa8be21178ae0638d9ed9187081fc0e96da8d7d68d2512c62856e10a7a03ea",
+    "sha256_imported": "9ffa8be21178ae0638d9ed9187081fc0e96da8d7d68d2512c62856e10a7a03ea"
+  },
+  {
+    "source": "lavka/app/schemas.py.bak-email-20260925_184046",
+    "destination": "archive/lavka/app/schemas.py.bak-email-20260925_184046",
+    "sha256_source": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9",
+    "sha256_imported": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9"
+  },
+  {
+    "source": "lavka/app/schemas.py.bak-shortdesc-20260925_193731",
+    "destination": "archive/lavka/app/schemas.py.bak-shortdesc-20260925_193731",
+    "sha256_source": "9ffa8be21178ae0638d9ed9187081fc0e96da8d7d68d2512c62856e10a7a03ea",
+    "sha256_imported": "9ffa8be21178ae0638d9ed9187081fc0e96da8d7d68d2512c62856e10a7a03ea"
+  },
+  {
+    "source": "lavka/app/__init__.py",
+    "destination": "app/__init__.py",
+    "sha256_source": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_imported": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "lavka/backup_hero_20260925_121812/index.html.bak",
+    "destination": "archive/lavka/backup_hero_20260925_121812/index.html.bak",
+    "sha256_source": "9a354e07a97af3696f210b4eb0f3cab918304c3cc4e00801015dc7f74d39eec7",
+    "sha256_imported": "9a354e07a97af3696f210b4eb0f3cab918304c3cc4e00801015dc7f74d39eec7"
+  },
+  {
+    "source": "lavka/backup_hero_20260925_121812/lavka-hero-real.webp.bak",
+    "destination": "archive/lavka/backup_hero_20260925_121812/lavka-hero-real.webp.bak",
+    "sha256_source": "9eed1ec9d49b4dff9e1303f9a632e96026b21c2127f3813a4932a5dc73684786",
+    "sha256_imported": "9eed1ec9d49b4dff9e1303f9a632e96026b21c2127f3813a4932a5dc73684786"
+  },
+  {
+    "source": "lavka/backup_hero_20260925_121812/styles.css.bak",
+    "destination": "archive/lavka/backup_hero_20260925_121812/styles.css.bak",
+    "sha256_source": "dadbb08a3f904e78fa1405b7f163d22e246a2ea2ed61e9bf5aa70d8b11915e95",
+    "sha256_imported": "dadbb08a3f904e78fa1405b7f163d22e246a2ea2ed61e9bf5aa70d8b11915e95"
+  },
+  {
+    "source": "lavka/backup_profile_20260925_142151/app-admin-v4.js",
+    "destination": "archive/lavka/backup_profile_20260925_142151/app-admin-v4.js",
+    "sha256_source": "e18b42944407635ed058dab34de0e3e6099cdee767ca320c9842fd353dd91a53",
+    "sha256_imported": "e18b42944407635ed058dab34de0e3e6099cdee767ca320c9842fd353dd91a53"
+  },
+  {
+    "source": "lavka/backup_profile_20260925_142151/main.py",
+    "destination": "archive/lavka/backup_profile_20260925_142151/main.py",
+    "sha256_source": "7ee4df7cba220e6be6d008f5bd7b51eb56099b9adb8769b088a862cb4b058658",
+    "sha256_imported": "7ee4df7cba220e6be6d008f5bd7b51eb56099b9adb8769b088a862cb4b058658"
+  },
+  {
+    "source": "lavka/backup_profile_20260925_142151/models.py",
+    "destination": "archive/lavka/backup_profile_20260925_142151/models.py",
+    "sha256_source": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7",
+    "sha256_imported": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143217/main.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143217/main.py",
+    "sha256_source": "9b787f69d2a2b43c3e9abdc40273dd8bc79723d3ede31cba08592ac8fe7e838d",
+    "sha256_imported": "9b787f69d2a2b43c3e9abdc40273dd8bc79723d3ede31cba08592ac8fe7e838d"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143217/models.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143217/models.py",
+    "sha256_source": "9ad398ade1be48d03bcd23d862cab0c24e1e82f1d11d4197ca4b67fc053c60a9",
+    "sha256_imported": "9ad398ade1be48d03bcd23d862cab0c24e1e82f1d11d4197ca4b67fc053c60a9"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143217/referrals.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143217/referrals.py",
+    "sha256_source": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058",
+    "sha256_imported": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143235/main.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143235/main.py",
+    "sha256_source": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89",
+    "sha256_imported": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143235/models.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143235/models.py",
+    "sha256_source": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054",
+    "sha256_imported": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143235/referrals.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143235/referrals.py",
+    "sha256_source": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6",
+    "sha256_imported": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143250/main.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143250/main.py",
+    "sha256_source": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89",
+    "sha256_imported": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143250/models.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143250/models.py",
+    "sha256_source": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054",
+    "sha256_imported": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054"
+  },
+  {
+    "source": "lavka/backup_referrals_20260925_143250/referrals.py",
+    "destination": "archive/lavka/backup_referrals_20260925_143250/referrals.py",
+    "sha256_source": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6",
+    "sha256_imported": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6"
+  },
+  {
+    "source": "lavka/backup_ref_20260925_143338/main.py",
+    "destination": "archive/lavka/backup_ref_20260925_143338/main.py",
+    "sha256_source": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89",
+    "sha256_imported": "b7c39fd879245298be9a8d4a1288852c9ed94a4c465a815c409364bb81becf89"
+  },
+  {
+    "source": "lavka/backup_ref_20260925_143338/models.py",
+    "destination": "archive/lavka/backup_ref_20260925_143338/models.py",
+    "sha256_source": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054",
+    "sha256_imported": "6b093271db9d126694f468e0c67fd5ae942059900ea13a9d6f673b08c0baa054"
+  },
+  {
+    "source": "lavka/backup_ref_20260925_143338/referrals.py",
+    "destination": "archive/lavka/backup_ref_20260925_143338/referrals.py",
+    "sha256_source": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6",
+    "sha256_imported": "f6f765bdd6c51e9e475ebf9ad7e24522710e82abc577d69bb1175f351c9e2ad6"
+  },
+  {
+    "source": "lavka/scripts/seed.py",
+    "destination": "scripts/seed.py",
+    "sha256_source": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65",
+    "sha256_imported": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js",
+    "destination": "static/app-admin-v4.js",
+    "sha256_source": "af53d65bbce33e68741b064e934d4c4f45ebbc6b0dd60d15ef852c0bf9c06155",
+    "sha256_imported": "af53d65bbce33e68741b064e934d4c4f45ebbc6b0dd60d15ef852c0bf9c06155"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bad-20260925_153005",
+    "destination": "archive/lavka/static/app-admin-v4.js.bad-20260925_153005",
+    "sha256_source": "821333a1acf3f15cb4bf3c8cfd8c213b6f8f25ddb42b594dc3d93e08cf6fb1af",
+    "sha256_imported": "821333a1acf3f15cb4bf3c8cfd8c213b6f8f25ddb42b594dc3d93e08cf6fb1af"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-18plus-20260925_182003",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-18plus-20260925_182003",
+    "sha256_source": "43648c188bb1a2251ceb9c44cc66c67b2de291de274d08ee0eca8fe02754a776",
+    "sha256_imported": "43648c188bb1a2251ceb9c44cc66c67b2de291de274d08ee0eca8fe02754a776"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-before-cdek-restore-20260926_180206",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-before-cdek-restore-20260926_180206",
+    "sha256_source": "0d8e8929991fb93e36e09eeac8a60598454a815c2220b2315c5f0ff395cf7097",
+    "sha256_imported": "0d8e8929991fb93e36e09eeac8a60598454a815c2220b2315c5f0ff395cf7097"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-before-city-final-20260926_175533",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-before-city-final-20260926_175533",
+    "sha256_source": "0d8e8929991fb93e36e09eeac8a60598454a815c2220b2315c5f0ff395cf7097",
+    "sha256_imported": "0d8e8929991fb93e36e09eeac8a60598454a815c2220b2315c5f0ff395cf7097"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-cdek-mode2-20260925_150707",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-cdek-mode2-20260925_150707",
+    "sha256_source": "0accdcd41c8a1953901cfe2dc1957c8dfbbb9409b3070aed148ebcac66fa08d5",
+    "sha256_imported": "0accdcd41c8a1953901cfe2dc1957c8dfbbb9409b3070aed148ebcac66fa08d5"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-cdek-modes-20260925_150611",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-cdek-modes-20260925_150611",
+    "sha256_source": "0accdcd41c8a1953901cfe2dc1957c8dfbbb9409b3070aed148ebcac66fa08d5",
+    "sha256_imported": "0accdcd41c8a1953901cfe2dc1957c8dfbbb9409b3070aed148ebcac66fa08d5"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-clean-20260926_174350",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-clean-20260926_174350",
+    "sha256_source": "4360a50df8b38ea8bbc04d3d76e54b4de9dcad0b9168c9395ebe319579f1a33c",
+    "sha256_imported": "4360a50df8b38ea8bbc04d3d76e54b4de9dcad0b9168c9395ebe319579f1a33c"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-display-20260926_174738",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-display-20260926_174738",
+    "sha256_source": "5c36512d9e03379064e1c5180451222b63187847f2447e4ac1afc491f8425b68",
+    "sha256_imported": "5c36512d9e03379064e1c5180451222b63187847f2447e4ac1afc491f8425b68"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-one-letter-20260926_181158",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-one-letter-20260926_181158",
+    "sha256_source": "4a254ee40838e309f574e49d869d8ed9410e5378b35787ac7204c581db396383",
+    "sha256_imported": "4a254ee40838e309f574e49d869d8ed9410e5378b35787ac7204c581db396383"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-real-fix-20260926_175258",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-real-fix-20260926_175258",
+    "sha256_source": "5c36512d9e03379064e1c5180451222b63187847f2447e4ac1afc491f8425b68",
+    "sha256_imported": "5c36512d9e03379064e1c5180451222b63187847f2447e4ac1afc491f8425b68"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-suggest-20260926_172057",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-suggest-20260926_172057",
+    "sha256_source": "4a254ee40838e309f574e49d869d8ed9410e5378b35787ac7204c581db396383",
+    "sha256_imported": "4a254ee40838e309f574e49d869d8ed9410e5378b35787ac7204c581db396383"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-city-ui-20260926_173824",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-city-ui-20260926_173824",
+    "sha256_source": "ac853f4dfb5c3762b7282cf4345121881ed03d211b6d798d4db58f0d04fff283",
+    "sha256_imported": "ac853f4dfb5c3762b7282cf4345121881ed03d211b6d798d4db58f0d04fff283"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-documents-20260925_192452",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-documents-20260925_192452",
+    "sha256_source": "4c439c0e11718cec7c90fcd706d430c884f1b03f6bee0a34278519e39dfdfc3e",
+    "sha256_imported": "4c439c0e11718cec7c90fcd706d430c884f1b03f6bee0a34278519e39dfdfc3e"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-email-20260925_184046",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-email-20260925_184046",
+    "sha256_source": "81a12934bc13e104f5bb1d6865f46776b3fa70af37072047f7db8d9d4bc9bf25",
+    "sha256_imported": "81a12934bc13e104f5bb1d6865f46776b3fa70af37072047f7db8d9d4bc9bf25"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-faq-20260925_203541",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-faq-20260925_203541",
+    "sha256_source": "f4a6d128157baa6aaa3358926b9acc59c66aceac314d02baf395c81bd1f663c2",
+    "sha256_imported": "f4a6d128157baa6aaa3358926b9acc59c66aceac314d02baf395c81bd1f663c2"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-faqfix-20260925_204917",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-faqfix-20260925_204917",
+    "sha256_source": "287c70feb64fee682304fdae2a34236ce4e256f0c116c2a1553207b6171f8ec8",
+    "sha256_imported": "287c70feb64fee682304fdae2a34236ce4e256f0c116c2a1553207b6171f8ec8"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-grouped-store-20260925_185855",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-grouped-store-20260925_185855",
+    "sha256_source": "0ba52e3c1282d5d4b6dacee41c7ebb00737bf4ca6c3a57043ac688a8ef4ecb8d",
+    "sha256_imported": "0ba52e3c1282d5d4b6dacee41c7ebb00737bf4ca6c3a57043ac688a8ef4ecb8d"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-icons-20260925-114139-948921",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-icons-20260925-114139-948921",
+    "sha256_source": "779c2951fb831cd3a76bcee994d861ff03d1747eaa74c263e8f5dd04d04312d3",
+    "sha256_imported": "779c2951fb831cd3a76bcee994d861ff03d1747eaa74c263e8f5dd04d04312d3"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-labels-20260925-113925-977038",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-labels-20260925-113925-977038",
+    "sha256_source": "6730090dafa572b1048ade22c64205bca5f4eee28a22c2dd92a09af8a8587c98",
+    "sha256_imported": "6730090dafa572b1048ade22c64205bca5f4eee28a22c2dd92a09af8a8587c98"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-product-info-20260925_194351",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-product-info-20260925_194351",
+    "sha256_source": "1ab1b0fdbdec9603a45d3745a27ed47fd5f7857475996993f9ddf1801bd4c291",
+    "sha256_imported": "1ab1b0fdbdec9603a45d3745a27ed47fd5f7857475996993f9ddf1801bd4c291"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-pvz-search-1790351549089541758",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-pvz-search-1790351549089541758",
+    "sha256_source": "0c8f1fef27e281e536ae3db5e520f5ef3a9d5688f4229b2b8a6cc04661f91225",
+    "sha256_imported": "0c8f1fef27e281e536ae3db5e520f5ef3a9d5688f4229b2b8a6cc04661f91225"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-pvz-search-20260926_054538",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-pvz-search-20260926_054538",
+    "sha256_source": "6f729a5de2b46b378e3c8c02aea767268d28d2de5cd2259b4be70e4b28d4e842",
+    "sha256_imported": "6f729a5de2b46b378e3c8c02aea767268d28d2de5cd2259b4be70e4b28d4e842"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-pvzsearch-20260925_152502",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-pvzsearch-20260925_152502",
+    "sha256_source": "0c8f1fef27e281e536ae3db5e520f5ef3a9d5688f4229b2b8a6cc04661f91225",
+    "sha256_imported": "0c8f1fef27e281e536ae3db5e520f5ef3a9d5688f4229b2b8a6cc04661f91225"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-refeditor-20260925_144452",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-refeditor-20260925_144452",
+    "sha256_source": "50be985fe1bb02592f808e163d19a21c8aeb3e0e82599153ec6a6795d3247cb1",
+    "sha256_imported": "50be985fe1bb02592f808e163d19a21c8aeb3e0e82599153ec6a6795d3247cb1"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-rootedit-20260925-112448",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-rootedit-20260925-112448",
+    "sha256_source": "5182000fc2d2be65e44af165e5685861cf01df5d32e0f9244dfcca97c796fdf6",
+    "sha256_imported": "5182000fc2d2be65e44af165e5685861cf01df5d32e0f9244dfcca97c796fdf6"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-sales-20260925_190735",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-sales-20260925_190735",
+    "sha256_source": "0d95a313277ea94262bf6be810f6911c7b380c5e94eda706a655ff83dab8d3eb",
+    "sha256_imported": "0d95a313277ea94262bf6be810f6911c7b380c5e94eda706a655ff83dab8d3eb"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-seller-20260925-113440-823935",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-seller-20260925-113440-823935",
+    "sha256_source": "71eefd1ca328fa0a7f27b35e4fd858281b9740e0e8792850069dfd0ecae2a641",
+    "sha256_imported": "71eefd1ca328fa0a7f27b35e4fd858281b9740e0e8792850069dfd0ecae2a641"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-shortdesc-20260925_193731",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-shortdesc-20260925_193731",
+    "sha256_source": "1ab1b0fdbdec9603a45d3745a27ed47fd5f7857475996993f9ddf1801bd4c291",
+    "sha256_imported": "1ab1b0fdbdec9603a45d3745a27ed47fd5f7857475996993f9ddf1801bd4c291"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak-upload-20260925_194750",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak-upload-20260925_194750",
+    "sha256_source": "d108be4a30acf8b995aee377670c93f03c287333b8bb69a8cd8f4238f705b5d9",
+    "sha256_imported": "d108be4a30acf8b995aee377670c93f03c287333b8bb69a8cd8f4238f705b5d9"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak_20260925_093527",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak_20260925_093527",
+    "sha256_source": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3",
+    "sha256_imported": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.bak_variants",
+    "destination": "archive/lavka/static/app-admin-v4.js.bak_variants",
+    "sha256_source": "81e931f0d0e0f1cc3532c1f71a8339227c567eaf1899a87878e421cbede87d50",
+    "sha256_imported": "81e931f0d0e0f1cc3532c1f71a8339227c567eaf1899a87878e421cbede87d50"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.before_nested_categories_20260925_101823",
+    "destination": "archive/lavka/static/app-admin-v4.js.before_nested_categories_20260925_101823",
+    "sha256_source": "edd7f47faac961b2112575fc8d15d8e2364ae65bdcc3a8590e20d33f6f39eb85",
+    "sha256_imported": "edd7f47faac961b2112575fc8d15d8e2364ae65bdcc3a8590e20d33f6f39eb85"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.before_product_variants_20260925_104302",
+    "destination": "archive/lavka/static/app-admin-v4.js.before_product_variants_20260925_104302",
+    "sha256_source": "e7f6f03bad2dc19a58b4138ada5ae2a396a25f8987184592a7d06fb9b4a228ea",
+    "sha256_imported": "e7f6f03bad2dc19a58b4138ada5ae2a396a25f8987184592a7d06fb9b4a228ea"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.before_public_seller_20260925_094207",
+    "destination": "archive/lavka/static/app-admin-v4.js.before_public_seller_20260925_094207",
+    "sha256_source": "7164b013e257fb310ce36ea16d23da3c0366684e6c3f9b146157917b1eb01361",
+    "sha256_imported": "7164b013e257fb310ce36ea16d23da3c0366684e6c3f9b146157917b1eb01361"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.before_seller_20260925_093852",
+    "destination": "archive/lavka/static/app-admin-v4.js.before_seller_20260925_093852",
+    "sha256_source": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3",
+    "sha256_imported": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.before_slug_20260925_100130",
+    "destination": "archive/lavka/static/app-admin-v4.js.before_slug_20260925_100130",
+    "sha256_source": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3",
+    "sha256_imported": "c05c6c69537ee8848c56d9ca2f98a89c77d79360e79ee2afae384c6d6ce18da3"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.info-backup-20260925-090055",
+    "destination": "archive/lavka/static/app-admin-v4.js.info-backup-20260925-090055",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.info2-backup-20260925-090949",
+    "destination": "archive/lavka/static/app-admin-v4.js.info2-backup-20260925-090949",
+    "sha256_source": "8970be961a7f35c2f6995081ff01b04af7395594d4bd5502a505461f129db3d2",
+    "sha256_imported": "8970be961a7f35c2f6995081ff01b04af7395594d4bd5502a505461f129db3d2"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.offer-backup-20260925-092825",
+    "destination": "archive/lavka/static/app-admin-v4.js.offer-backup-20260925-092825",
+    "sha256_source": "34725e8ee99d7dd4e48f0a98f2dc2f10b6bb7b24b0b86225321a55300e7f028f",
+    "sha256_imported": "34725e8ee99d7dd4e48f0a98f2dc2f10b6bb7b24b0b86225321a55300e7f028f"
+  },
+  {
+    "source": "lavka/static/app-admin-v4.js.privacy-backup-20260925-092452",
+    "destination": "archive/lavka/static/app-admin-v4.js.privacy-backup-20260925-092452",
+    "sha256_source": "84332cec24a70a8937b068b25798c41c1a8416676b2296d4a502a4de409ab43c",
+    "sha256_imported": "84332cec24a70a8937b068b25798c41c1a8416676b2296d4a502a4de409ab43c"
+  },
+  {
+    "source": "lavka/static/app-admin-v5.js",
+    "destination": "static/app-admin-v5.js",
+    "sha256_source": "4b42bd240c03e13ece9f3779deab144070d4b313380db6d251e2fcfa3c0f3fc4",
+    "sha256_imported": "4b42bd240c03e13ece9f3779deab144070d4b313380db6d251e2fcfa3c0f3fc4"
+  },
+  {
+    "source": "lavka/static/app-admin-v5.js.bak-city-native-20260926_175855",
+    "destination": "archive/lavka/static/app-admin-v5.js.bak-city-native-20260926_175855",
+    "sha256_source": "f1e4244826f9b8023111ad411a2f45095a293d4337ee488740727287ab925eb5",
+    "sha256_imported": "f1e4244826f9b8023111ad411a2f45095a293d4337ee488740727287ab925eb5"
+  },
+  {
+    "source": "lavka/static/app.js",
+    "destination": "static/app.js",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "lavka/static/file_000000004d88820cae40a8317aeaf990.png",
+    "destination": "static/file_000000004d88820cae40a8317aeaf990.png",
+    "sha256_source": "8a8687bf94977245968b6c8b10ad2dbc4184f72304cc138f6c9bd62d6a5a961f",
+    "sha256_imported": "8a8687bf94977245968b6c8b10ad2dbc4184f72304cc138f6c9bd62d6a5a961f"
+  },
+  {
+    "source": "lavka/static/file_000000005d4c8211831d25b0ea95db5b.png",
+    "destination": "static/file_000000005d4c8211831d25b0ea95db5b.png",
+    "sha256_source": "bef37f32b73a773c2bbc912c39bfddfaf68a4b0804d509af72a5a621ca0eb8ab",
+    "sha256_imported": "bef37f32b73a773c2bbc912c39bfddfaf68a4b0804d509af72a5a621ca0eb8ab"
+  },
+  {
+    "source": "lavka/static/hero-scene.svg",
+    "destination": "static/hero-scene.svg",
+    "sha256_source": "b16ba69c44a103fe8350fb48767ab401140f232d6ad81a7ac25dcc88fd40b4a9",
+    "sha256_imported": "b16ba69c44a103fe8350fb48767ab401140f232d6ad81a7ac25dcc88fd40b4a9"
+  },
+  {
+    "source": "lavka/static/hero-shaman.png",
+    "destination": "static/hero-shaman.png",
+    "sha256_source": "bef37f32b73a773c2bbc912c39bfddfaf68a4b0804d509af72a5a621ca0eb8ab",
+    "sha256_imported": "bef37f32b73a773c2bbc912c39bfddfaf68a4b0804d509af72a5a621ca0eb8ab"
+  },
+  {
+    "source": "lavka/static/index.html",
+    "destination": "static/index.html",
+    "sha256_source": "db3252f8e81063589d8675fb7b98e5f4f3ba7a72f9ea489c00334d9064c5e032",
+    "sha256_imported": "db3252f8e81063589d8675fb7b98e5f4f3ba7a72f9ea489c00334d9064c5e032"
+  },
+  {
+    "source": "lavka/static/index.html.bak-18plus-20260925_182003",
+    "destination": "archive/lavka/static/index.html.bak-18plus-20260925_182003",
+    "sha256_source": "d093b346a32fde06b5f6c98051f0da73b1397c0baba4c80286138770a9c475c8",
+    "sha256_imported": "d093b346a32fde06b5f6c98051f0da73b1397c0baba4c80286138770a9c475c8"
+  },
+  {
+    "source": "lavka/static/index.html.bak-20260925-110717",
+    "destination": "archive/lavka/static/index.html.bak-20260925-110717",
+    "sha256_source": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7",
+    "sha256_imported": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7"
+  },
+  {
+    "source": "lavka/static/index.html.bak-before-cdek-restore-20260926_180206",
+    "destination": "archive/lavka/static/index.html.bak-before-cdek-restore-20260926_180206",
+    "sha256_source": "0e0b84903519a950691aa8471edf7153e49f2fb61e1b0c2ad1889955d76cbc92",
+    "sha256_imported": "0e0b84903519a950691aa8471edf7153e49f2fb61e1b0c2ad1889955d76cbc92"
+  },
+  {
+    "source": "lavka/static/index.html.bak-before-city-final-20260926_175533",
+    "destination": "archive/lavka/static/index.html.bak-before-city-final-20260926_175533",
+    "sha256_source": "e6c47b6c0f24e693389d63435d72bd303e75f8d590f2cd691db45fa15353bd81",
+    "sha256_imported": "e6c47b6c0f24e693389d63435d72bd303e75f8d590f2cd691db45fa15353bd81"
+  },
+  {
+    "source": "lavka/static/index.html.bak-before-rollback-20260925-115009",
+    "destination": "archive/lavka/static/index.html.bak-before-rollback-20260925-115009",
+    "sha256_source": "a2d1f100e45c9f9a83b8d6cb07c38a7e4113b951a45263b8929332a0da4f78c9",
+    "sha256_imported": "a2d1f100e45c9f9a83b8d6cb07c38a7e4113b951a45263b8929332a0da4f78c9"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-clean-20260926_174350",
+    "destination": "archive/lavka/static/index.html.bak-city-clean-20260926_174350",
+    "sha256_source": "57283431eb0c8f8e1bf0c8bf77ae1daeacbb3b2958215ea1f1e0a8bac17ed688",
+    "sha256_imported": "57283431eb0c8f8e1bf0c8bf77ae1daeacbb3b2958215ea1f1e0a8bac17ed688"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-display-20260926_174738",
+    "destination": "archive/lavka/static/index.html.bak-city-display-20260926_174738",
+    "sha256_source": "4ca5dbd54d65710cfa49f97d9c3488c7af52e3a69b0102e2f0ef837fd2b0030c",
+    "sha256_imported": "4ca5dbd54d65710cfa49f97d9c3488c7af52e3a69b0102e2f0ef837fd2b0030c"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-native-20260926_175855",
+    "destination": "archive/lavka/static/index.html.bak-city-native-20260926_175855",
+    "sha256_source": "6256e328acc0280ca24d0a82ce8547755d7d40a93607370e87d026f51104807e",
+    "sha256_imported": "6256e328acc0280ca24d0a82ce8547755d7d40a93607370e87d026f51104807e"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-one-letter-20260926_181158",
+    "destination": "archive/lavka/static/index.html.bak-city-one-letter-20260926_181158",
+    "sha256_source": "41f6ca1dfdf3a4bcde5ea790ebcd4af099ce86f1f637d2fc16cab96aff606637",
+    "sha256_imported": "41f6ca1dfdf3a4bcde5ea790ebcd4af099ce86f1f637d2fc16cab96aff606637"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-real-fix-20260926_175258",
+    "destination": "archive/lavka/static/index.html.bak-city-real-fix-20260926_175258",
+    "sha256_source": "4ca5dbd54d65710cfa49f97d9c3488c7af52e3a69b0102e2f0ef837fd2b0030c",
+    "sha256_imported": "4ca5dbd54d65710cfa49f97d9c3488c7af52e3a69b0102e2f0ef837fd2b0030c"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-suggest-20260926_172057",
+    "destination": "archive/lavka/static/index.html.bak-city-suggest-20260926_172057",
+    "sha256_source": "41f6ca1dfdf3a4bcde5ea790ebcd4af099ce86f1f637d2fc16cab96aff606637",
+    "sha256_imported": "41f6ca1dfdf3a4bcde5ea790ebcd4af099ce86f1f637d2fc16cab96aff606637"
+  },
+  {
+    "source": "lavka/static/index.html.bak-city-ui-20260926_173824",
+    "destination": "archive/lavka/static/index.html.bak-city-ui-20260926_173824",
+    "sha256_source": "d749f888b9bc8eb9317efe38bb349a9c63cd55441d44b5570d6c7d629d07cdc9",
+    "sha256_imported": "d749f888b9bc8eb9317efe38bb349a9c63cd55441d44b5570d6c7d629d07cdc9"
+  },
+  {
+    "source": "lavka/static/index.html.bak-documents-20260925_192452",
+    "destination": "archive/lavka/static/index.html.bak-documents-20260925_192452",
+    "sha256_source": "c3414643084918bd6bf30699a746f5a07c82ad1f99ac126b2e13c57a7ce66eb2",
+    "sha256_imported": "c3414643084918bd6bf30699a746f5a07c82ad1f99ac126b2e13c57a7ce66eb2"
+  },
+  {
+    "source": "lavka/static/index.html.bak-email-20260925_184046",
+    "destination": "archive/lavka/static/index.html.bak-email-20260925_184046",
+    "sha256_source": "9484bf2285299af0c2d8fe6e8d50b641d4814f968c1e9ae292f32ec5fa676c45",
+    "sha256_imported": "9484bf2285299af0c2d8fe6e8d50b641d4814f968c1e9ae292f32ec5fa676c45"
+  },
+  {
+    "source": "lavka/static/index.html.bak-faq-20260925_203541",
+    "destination": "archive/lavka/static/index.html.bak-faq-20260925_203541",
+    "sha256_source": "ecf4626944aa955c646f1cf568b84667e71b46b6a7c4b6f7a13cec1adda10f8f",
+    "sha256_imported": "ecf4626944aa955c646f1cf568b84667e71b46b6a7c4b6f7a13cec1adda10f8f"
+  },
+  {
+    "source": "lavka/static/index.html.bak-faqfix-20260925_204917",
+    "destination": "archive/lavka/static/index.html.bak-faqfix-20260925_204917",
+    "sha256_source": "8b4556a08aa2279edc9c14ac28d80b329a541a5fa40b7f357c036cc399d9d216",
+    "sha256_imported": "8b4556a08aa2279edc9c14ac28d80b329a541a5fa40b7f357c036cc399d9d216"
+  },
+  {
+    "source": "lavka/static/index.html.bak-forest-20260925-114819-310285",
+    "destination": "archive/lavka/static/index.html.bak-forest-20260925-114819-310285",
+    "sha256_source": "9a354e07a97af3696f210b4eb0f3cab918304c3cc4e00801015dc7f74d39eec7",
+    "sha256_imported": "9a354e07a97af3696f210b4eb0f3cab918304c3cc4e00801015dc7f74d39eec7"
+  },
+  {
+    "source": "lavka/static/index.html.bak-grouped-store-20260925_185855",
+    "destination": "archive/lavka/static/index.html.bak-grouped-store-20260925_185855",
+    "sha256_source": "b9d74b1b50ff884f887985f3310591141ea8ad6da69b5f0d6c5162944c109492",
+    "sha256_imported": "b9d74b1b50ff884f887985f3310591141ea8ad6da69b5f0d6c5162944c109492"
+  },
+  {
+    "source": "lavka/static/index.html.bak-hero-fix-20260925_185207",
+    "destination": "archive/lavka/static/index.html.bak-hero-fix-20260925_185207",
+    "sha256_source": "442ba426c959568c157d2db2404b989ad03e5adab905374c0e419ecdc658f400",
+    "sha256_imported": "442ba426c959568c157d2db2404b989ad03e5adab905374c0e419ecdc658f400"
+  },
+  {
+    "source": "lavka/static/index.html.bak-hero-text-20260925_184932",
+    "destination": "archive/lavka/static/index.html.bak-hero-text-20260925_184932",
+    "sha256_source": "337c52cc5ad81533fd8f87ce92828a666a7cd9be9c56021762ed02ea83891613",
+    "sha256_imported": "337c52cc5ad81533fd8f87ce92828a666a7cd9be9c56021762ed02ea83891613"
+  },
+  {
+    "source": "lavka/static/index.html.bak-icons-20260925-114139-948921",
+    "destination": "archive/lavka/static/index.html.bak-icons-20260925-114139-948921",
+    "sha256_source": "3ad750fd5d161610a124cad79ef8253ec632959c20cda26da182b0e7136dc902",
+    "sha256_imported": "3ad750fd5d161610a124cad79ef8253ec632959c20cda26da182b0e7136dc902"
+  },
+  {
+    "source": "lavka/static/index.html.bak-labels-20260925-113925-977038",
+    "destination": "archive/lavka/static/index.html.bak-labels-20260925-113925-977038",
+    "sha256_source": "40ec7d979fe34cd166ffe5b346a81a3f89eb66b4d6e82e95a6956a0cae4151e8",
+    "sha256_imported": "40ec7d979fe34cd166ffe5b346a81a3f89eb66b4d6e82e95a6956a0cae4151e8"
+  },
+  {
+    "source": "lavka/static/index.html.bak-product-info-20260925_194351",
+    "destination": "archive/lavka/static/index.html.bak-product-info-20260925_194351",
+    "sha256_source": "da96ae269dd8716b7d0277c2035bd514bfd6042f4949ba2c814db1d25e8536b4",
+    "sha256_imported": "da96ae269dd8716b7d0277c2035bd514bfd6042f4949ba2c814db1d25e8536b4"
+  },
+  {
+    "source": "lavka/static/index.html.bak-pvz-search-1790351549089541758",
+    "destination": "archive/lavka/static/index.html.bak-pvz-search-1790351549089541758",
+    "sha256_source": "4e120138abe8f950d398eed0dc506f9a247fb0742ec3a1d09db7f8af43c380ad",
+    "sha256_imported": "4e120138abe8f950d398eed0dc506f9a247fb0742ec3a1d09db7f8af43c380ad"
+  },
+  {
+    "source": "lavka/static/index.html.bak-pvz-search-20260926_054538",
+    "destination": "archive/lavka/static/index.html.bak-pvz-search-20260926_054538",
+    "sha256_source": "a75e80d90875d9032758e072a7f8433effc0b2080d804111626fb2f782ae036f",
+    "sha256_imported": "a75e80d90875d9032758e072a7f8433effc0b2080d804111626fb2f782ae036f"
+  },
+  {
+    "source": "lavka/static/index.html.bak-rootedit-20260925-112448",
+    "destination": "archive/lavka/static/index.html.bak-rootedit-20260925-112448",
+    "sha256_source": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7",
+    "sha256_imported": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7"
+  },
+  {
+    "source": "lavka/static/index.html.bak-sales-20260925_190735",
+    "destination": "archive/lavka/static/index.html.bak-sales-20260925_190735",
+    "sha256_source": "b992a8b38e956461ae2504b45c75e0cf24f4316012dbbfe52ea660f1537bb000",
+    "sha256_imported": "b992a8b38e956461ae2504b45c75e0cf24f4316012dbbfe52ea660f1537bb000"
+  },
+  {
+    "source": "lavka/static/index.html.bak-seller-20260925-113440-823935",
+    "destination": "archive/lavka/static/index.html.bak-seller-20260925-113440-823935",
+    "sha256_source": "d5d9b6dae6f2ecb349899cb195a935c2290689e752619a9dc41cada5fd8f3df4",
+    "sha256_imported": "d5d9b6dae6f2ecb349899cb195a935c2290689e752619a9dc41cada5fd8f3df4"
+  },
+  {
+    "source": "lavka/static/index.html.bak-shortdesc-20260925_193731",
+    "destination": "archive/lavka/static/index.html.bak-shortdesc-20260925_193731",
+    "sha256_source": "da96ae269dd8716b7d0277c2035bd514bfd6042f4949ba2c814db1d25e8536b4",
+    "sha256_imported": "da96ae269dd8716b7d0277c2035bd514bfd6042f4949ba2c814db1d25e8536b4"
+  },
+  {
+    "source": "lavka/static/index.html.bak-wrap-20260925-114322-082006",
+    "destination": "archive/lavka/static/index.html.bak-wrap-20260925-114322-082006",
+    "sha256_source": "1486ff2ea93765e4de4b63e567b64ec909eae3bb042b1ef9ce559db2a0d15c3b",
+    "sha256_imported": "1486ff2ea93765e4de4b63e567b64ec909eae3bb042b1ef9ce559db2a0d15c3b"
+  },
+  {
+    "source": "lavka/static/index.html.bak_categories_20260925_110247",
+    "destination": "archive/lavka/static/index.html.bak_categories_20260925_110247",
+    "sha256_source": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7",
+    "sha256_imported": "7904730dd7a4ddfae16b94ea0ef28d4c74f0b9dafb620cec26cded87517722f7"
+  },
+  {
+    "source": "lavka/static/index.html.before_slug_20260925_100130",
+    "destination": "archive/lavka/static/index.html.before_slug_20260925_100130",
+    "sha256_source": "7c1b04454e8155b1ac425b0f2d378719bf48305655abcc7e0c94328ece322ee4",
+    "sha256_imported": "7c1b04454e8155b1ac425b0f2d378719bf48305655abcc7e0c94328ece322ee4"
+  },
+  {
+    "source": "lavka/static/index.html.info-backup-20260925-090055",
+    "destination": "archive/lavka/static/index.html.info-backup-20260925-090055",
+    "sha256_source": "9344f2febe61ced13039a1922cff94d3355b064eadfbce1b65ce0328c206cfab",
+    "sha256_imported": "9344f2febe61ced13039a1922cff94d3355b064eadfbce1b65ce0328c206cfab"
+  },
+  {
+    "source": "lavka/static/index.html.info2-backup-20260925-090949",
+    "destination": "archive/lavka/static/index.html.info2-backup-20260925-090949",
+    "sha256_source": "863ade6f1cf71c614d9325314cbc46ff56455e6ba0231bb51536537935c2c6ea",
+    "sha256_imported": "863ade6f1cf71c614d9325314cbc46ff56455e6ba0231bb51536537935c2c6ea"
+  },
+  {
+    "source": "lavka/static/index.html.privacy-backup-20260925-092452",
+    "destination": "archive/lavka/static/index.html.privacy-backup-20260925-092452",
+    "sha256_source": "863ade6f1cf71c614d9325314cbc46ff56455e6ba0231bb51536537935c2c6ea",
+    "sha256_imported": "863ade6f1cf71c614d9325314cbc46ff56455e6ba0231bb51536537935c2c6ea"
+  },
+  {
+    "source": "lavka/static/lavka-hero-real.webp",
+    "destination": "static/lavka-hero-real.webp",
+    "sha256_source": "9eed1ec9d49b4dff9e1303f9a632e96026b21c2127f3813a4932a5dc73684786",
+    "sha256_imported": "9eed1ec9d49b4dff9e1303f9a632e96026b21c2127f3813a4932a5dc73684786"
+  },
+  {
+    "source": "lavka/static/logo.jpg",
+    "destination": "static/logo.jpg",
+    "sha256_source": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436",
+    "sha256_imported": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436"
+  },
+  {
+    "source": "lavka/static/shaman-style-v4.css",
+    "destination": "static/shaman-style-v4.css",
+    "sha256_source": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476",
+    "sha256_imported": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476"
+  },
+  {
+    "source": "lavka/static/styles.css",
+    "destination": "static/styles.css",
+    "sha256_source": "dadbb08a3f904e78fa1405b7f163d22e246a2ea2ed61e9bf5aa70d8b11915e95",
+    "sha256_imported": "dadbb08a3f904e78fa1405b7f163d22e246a2ea2ed61e9bf5aa70d8b11915e95"
+  },
+  {
+    "source": "lavka/static/styles.css.bak",
+    "destination": "archive/lavka/static/styles.css.bak",
+    "sha256_source": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9",
+    "sha256_imported": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9"
+  },
+  {
+    "source": "lavka/static/styles.css.bak_categories_20260925_110247",
+    "destination": "archive/lavka/static/styles.css.bak_categories_20260925_110247",
+    "sha256_source": "7255f8e4b284546f27f4daaa2c39fc6f3f53ce41fd29f7791a93448d47097da9",
+    "sha256_imported": "7255f8e4b284546f27f4daaa2c39fc6f3f53ce41fd29f7791a93448d47097da9"
+  },
+  {
+    "source": "lavka/static/styles.css.before_category_grid_20260925_110511",
+    "destination": "archive/lavka/static/styles.css.before_category_grid_20260925_110511",
+    "sha256_source": "4bfc241462f16964ec1baed7ab0fffbfce2a99e102ad48e017f4db7483e19dd9",
+    "sha256_imported": "4bfc241462f16964ec1baed7ab0fffbfce2a99e102ad48e017f4db7483e19dd9"
+  },
+  {
+    "source": "lavka/static/styles.css.before_category_text_20260925_105914",
+    "destination": "archive/lavka/static/styles.css.before_category_text_20260925_105914",
+    "sha256_source": "cb2ef830fe6851330164050cd57a8363069dbd1b18806cbde49b337c55062750",
+    "sha256_imported": "cb2ef830fe6851330164050cd57a8363069dbd1b18806cbde49b337c55062750"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/app-admin-v4.js",
+    "destination": "archive/lavka/static-backup-20260922-202921/app-admin-v4.js",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/app.js",
+    "destination": "archive/lavka/static-backup-20260922-202921/app.js",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/index.html",
+    "destination": "archive/lavka/static-backup-20260922-202921/index.html",
+    "sha256_source": "8e43b59a6e9b316dbe3db573b1b0c60be4b8a227e3a860e2c7b6b8e24d7735f8",
+    "sha256_imported": "8e43b59a6e9b316dbe3db573b1b0c60be4b8a227e3a860e2c7b6b8e24d7735f8"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/logo.jpg",
+    "destination": "archive/lavka/static-backup-20260922-202921/logo.jpg",
+    "sha256_source": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436",
+    "sha256_imported": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/shaman-style-v4.css",
+    "destination": "archive/lavka/static-backup-20260922-202921/shaman-style-v4.css",
+    "sha256_source": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476",
+    "sha256_imported": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/styles.css",
+    "destination": "archive/lavka/static-backup-20260922-202921/styles.css",
+    "sha256_source": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476",
+    "sha256_imported": "f6bc4302ce52d476a22bac96d50350ac2cde6b887d94ec840e32400c4df14476"
+  },
+  {
+    "source": "lavka/static-backup-20260922-202921/styles.css.bak",
+    "destination": "archive/lavka/static-backup-20260922-202921/styles.css.bak",
+    "sha256_source": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9",
+    "sha256_imported": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9"
+  },
+  {
+    "source": "lavka/tests/test_referrals.py",
+    "destination": "tests/test_referrals.py",
+    "sha256_source": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67",
+    "sha256_imported": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67"
+  },
+  {
+    "source": "lavka/static/document/IMG_20260926_001559_999.jpg",
+    "destination": "static/document/IMG_20260926_001559_999.jpg",
+    "sha256_source": "ef9a32046716ba2513ec5e82508bce5df48cb06a3fdda07adaeee7137717e257",
+    "sha256_imported": "ef9a32046716ba2513ec5e82508bce5df48cb06a3fdda07adaeee7137717e257"
+  },
+  {
+    "source": "lavka/static/document/IMG_20260926_001601_729.jpg",
+    "destination": "static/document/IMG_20260926_001601_729.jpg",
+    "sha256_source": "78f7b92e1bbadaf8cac0cd8fc6414e84651467999fce541e437ee53bba4f4977",
+    "sha256_imported": "78f7b92e1bbadaf8cac0cd8fc6414e84651467999fce541e437ee53bba4f4977"
+  },
+  {
+    "source": "lavka/static/document/IMG_20260926_001603_656.jpg",
+    "destination": "static/document/IMG_20260926_001603_656.jpg",
+    "sha256_source": "920bb9aeab57c5eda4b943d54e5a348f28e6d5e155e957201a34b12635ba87e3",
+    "sha256_imported": "920bb9aeab57c5eda4b943d54e5a348f28e6d5e155e957201a34b12635ba87e3"
+  },
+  {
+    "source": "lavka/static/document/IMG_20260926_001605_599.jpg",
+    "destination": "static/document/IMG_20260926_001605_599.jpg",
+    "sha256_source": "59bf29381b3863d6a083f3d0dab66aafcd349e1f8f0e29c65a16bce8014a4e1f",
+    "sha256_imported": "59bf29381b3863d6a083f3d0dab66aafcd349e1f8f0e29c65a16bce8014a4e1f"
+  },
+  {
+    "source": "lavka/static/uploads/047f702cdb014ed2b83e65015b5d9d11.png",
+    "destination": "static/uploads/047f702cdb014ed2b83e65015b5d9d11.png",
+    "sha256_source": "23efede0d9bb3954f9ef635b10aa2503ef680ed6adc33640aff81463b7ec48c8",
+    "sha256_imported": "23efede0d9bb3954f9ef635b10aa2503ef680ed6adc33640aff81463b7ec48c8"
+  },
+  {
+    "source": "lavka/static/uploads/04e5929af525467ca6b210f6c448406d.png",
+    "destination": "static/uploads/04e5929af525467ca6b210f6c448406d.png",
+    "sha256_source": "3f90c103943cc76392ecad0a2e5063b59431a0ecc48a5f2da0fb6198038248f1",
+    "sha256_imported": "3f90c103943cc76392ecad0a2e5063b59431a0ecc48a5f2da0fb6198038248f1"
+  },
+  {
+    "source": "lavka/static/uploads/35794dbff95d40e7acefd5ac0bc437ef.png",
+    "destination": "static/uploads/35794dbff95d40e7acefd5ac0bc437ef.png",
+    "sha256_source": "d4ab7ebb19ba7bb58d7b77aeb9c23e6735e3dde788960e89d593ad8d4c9c63b9",
+    "sha256_imported": "d4ab7ebb19ba7bb58d7b77aeb9c23e6735e3dde788960e89d593ad8d4c9c63b9"
+  },
+  {
+    "source": "lavka/static/uploads/3d222f66d3cb4258a21fdd0fb62a127e.png",
+    "destination": "static/uploads/3d222f66d3cb4258a21fdd0fb62a127e.png",
+    "sha256_source": "46838e51cd2edcd539cd6bdbec59a332d1123502db397b4007521e83a78cf9e8",
+    "sha256_imported": "46838e51cd2edcd539cd6bdbec59a332d1123502db397b4007521e83a78cf9e8"
+  },
+  {
+    "source": "lavka/static/uploads/ff9cb79e6e03402b8364c8618799a885.png",
+    "destination": "static/uploads/ff9cb79e6e03402b8364c8618799a885.png",
+    "sha256_source": "17c4f416443929e2f83611423a8df527b1f27de5eec6da6603f0e67e2f0967b1",
+    "sha256_imported": "17c4f416443929e2f83611423a8df527b1f27de5eec6da6603f0e67e2f0967b1"
+  },
+  {
+    "source": "lavka/app/services/cdek.py",
+    "destination": "app/services/cdek.py",
+    "sha256_source": "aba95a1e8281d1c56d75007c32e017e1b5ec39c1a57f7abf1a4607a5f522fb72",
+    "sha256_imported": "aba95a1e8281d1c56d75007c32e017e1b5ec39c1a57f7abf1a4607a5f522fb72"
+  },
+  {
+    "source": "lavka/app/services/cdek.py.bak-before-cdek-restore-20260926_180206",
+    "destination": "archive/lavka/app/services/cdek.py.bak-before-cdek-restore-20260926_180206",
+    "sha256_source": "d1590b48ed27d55b03f94baba8ab927ce6b3dfdf3e5c62f34ebb7eab0aaedc44",
+    "sha256_imported": "d1590b48ed27d55b03f94baba8ab927ce6b3dfdf3e5c62f34ebb7eab0aaedc44"
+  },
+  {
+    "source": "lavka/app/services/cdek.py.bak-city-prefix-fix-20260926_180751",
+    "destination": "archive/lavka/app/services/cdek.py.bak-city-prefix-fix-20260926_180751",
+    "sha256_source": "400948e8e7ce7902ee2742d4ffb74eb2de253d7e3dd271ae61de8b1d8442b09d",
+    "sha256_imported": "400948e8e7ce7902ee2742d4ffb74eb2de253d7e3dd271ae61de8b1d8442b09d"
+  },
+  {
+    "source": "lavka/app/services/cdek.py.bak-city-suggest-20260926_172057",
+    "destination": "archive/lavka/app/services/cdek.py.bak-city-suggest-20260926_172057",
+    "sha256_source": "400948e8e7ce7902ee2742d4ffb74eb2de253d7e3dd271ae61de8b1d8442b09d",
+    "sha256_imported": "400948e8e7ce7902ee2742d4ffb74eb2de253d7e3dd271ae61de8b1d8442b09d"
+  },
+  {
+    "source": "lavka/app/services/cdek.py.bak-fix-origin-20260925_151530",
+    "destination": "archive/lavka/app/services/cdek.py.bak-fix-origin-20260925_151530",
+    "sha256_source": "0c6a91c56a5416d0697784c7609ad41d36cc4bc1b5adeb0bc7984a638bc16a19",
+    "sha256_imported": "0c6a91c56a5416d0697784c7609ad41d36cc4bc1b5adeb0bc7984a638bc16a19"
+  },
+  {
+    "source": "lavka/app/services/cdek.py.bak-okt1-20260925_151433",
+    "destination": "archive/lavka/app/services/cdek.py.bak-okt1-20260925_151433",
+    "sha256_source": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880",
+    "sha256_imported": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880"
+  },
+  {
+    "source": "lavka/app/services/payments.py",
+    "destination": "app/services/payments.py",
+    "sha256_source": "beea8d687cc9163b6b821da0e49a5a8651a8cc365330030c34df05403b038db6",
+    "sha256_imported": "beea8d687cc9163b6b821da0e49a5a8651a8cc365330030c34df05403b038db6"
+  },
+  {
+    "source": "lavka/app/services/payments.py.bak-receipt-20260925_180851",
+    "destination": "archive/lavka/app/services/payments.py.bak-receipt-20260925_180851",
+    "sha256_source": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c",
+    "sha256_imported": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c"
+  },
+  {
+    "source": "lavka/app/services/referrals.py",
+    "destination": "app/services/referrals.py",
+    "sha256_source": "83140a45e3859cdf9a31341cec3ba3a97affc1f27a9943f8a86edd7b764f78ab",
+    "sha256_imported": "83140a45e3859cdf9a31341cec3ba3a97affc1f27a9943f8a86edd7b764f78ab"
+  },
+  {
+    "source": "lavka/app/services/telegram.py",
+    "destination": "app/services/telegram.py",
+    "sha256_source": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608",
+    "sha256_imported": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608"
+  },
+  {
+    "source": "initial-package/app/bot.py",
+    "destination": "archive/initial-package/app/bot.py",
+    "sha256_source": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df",
+    "sha256_imported": "434b2709879c34548a2c7ade020c89d0237d4e8feb243c768a25396e8ca9b8df"
+  },
+  {
+    "source": "initial-package/app/config.py",
+    "destination": "archive/initial-package/app/config.py",
+    "sha256_source": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00",
+    "sha256_imported": "22fef0e40c13376e2e9b37c7f8f365711aa8ddd0d07d6eb7406fe4bce3189b00"
+  },
+  {
+    "source": "initial-package/app/db.py",
+    "destination": "archive/initial-package/app/db.py",
+    "sha256_source": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4",
+    "sha256_imported": "cc490aa7231a3a91378608a2847a1fc007fa207f8a3f805e401f66fefb1800a4"
+  },
+  {
+    "source": "initial-package/app/main.py",
+    "destination": "archive/initial-package/app/main.py",
+    "sha256_source": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699",
+    "sha256_imported": "166259b9d6467650755752a18466e2d6344865de21bef123ed624cedbfc04699"
+  },
+  {
+    "source": "initial-package/app/models.py",
+    "destination": "archive/initial-package/app/models.py",
+    "sha256_source": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7",
+    "sha256_imported": "98aa0ac6c320d25cb21eddcb458d3a719b75f4b0631af82bf406fbfa3f28f3b7"
+  },
+  {
+    "source": "initial-package/app/schemas.py",
+    "destination": "archive/initial-package/app/schemas.py",
+    "sha256_source": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9",
+    "sha256_imported": "3eb977816e0f914e997206d79f202e50eb9a574886216fbedb9bea1a1250b4f9"
+  },
+  {
+    "source": "initial-package/app/__init__.py",
+    "destination": "archive/initial-package/app/__init__.py",
+    "sha256_source": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sha256_imported": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "source": "initial-package/scripts/seed.py",
+    "destination": "archive/initial-package/scripts/seed.py",
+    "sha256_source": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65",
+    "sha256_imported": "ae8dd8acee964a67552762a0142df6c3974b862293563ff634c826b6ec306e65"
+  },
+  {
+    "source": "initial-package/static/app.js",
+    "destination": "archive/initial-package/static/app.js",
+    "sha256_source": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6",
+    "sha256_imported": "d60d082e4c51b5ffb81f9fed007fd561db1d64f0d65a2cdb6fa579de6f21ddb6"
+  },
+  {
+    "source": "initial-package/static/index.html",
+    "destination": "archive/initial-package/static/index.html",
+    "sha256_source": "483f1d58048fb01aa7397451d70859df3ca2d06e04a4ae70369a6f1f6652d464",
+    "sha256_imported": "483f1d58048fb01aa7397451d70859df3ca2d06e04a4ae70369a6f1f6652d464"
+  },
+  {
+    "source": "initial-package/static/logo.jpg",
+    "destination": "archive/initial-package/static/logo.jpg",
+    "sha256_source": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436",
+    "sha256_imported": "2cd65a1089329dd08db14370f5f4b7b7acaef846a3f4bcc756890ef2b6e48436"
+  },
+  {
+    "source": "initial-package/static/styles.css",
+    "destination": "archive/initial-package/static/styles.css",
+    "sha256_source": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9",
+    "sha256_imported": "d8678b8daa5dbca5996d5fefa3c13daa0e5ccc04479d25834fe6b75ea684fca9"
+  },
+  {
+    "source": "initial-package/tests/test_referrals.py",
+    "destination": "archive/initial-package/tests/test_referrals.py",
+    "sha256_source": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67",
+    "sha256_imported": "b2ac2ba02657e7187c4e4f4974953e900f77c277b10ffad429645bcdfcb47f67"
+  },
+  {
+    "source": "initial-package/app/services/cdek.py",
+    "destination": "archive/initial-package/app/services/cdek.py",
+    "sha256_source": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880",
+    "sha256_imported": "9463be2dd9fecb8fb4eaf1bade4b0e0171a3e0b5c07e5f350c1b85b2df9ac880"
+  },
+  {
+    "source": "initial-package/app/services/payments.py",
+    "destination": "archive/initial-package/app/services/payments.py",
+    "sha256_source": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c",
+    "sha256_imported": "56390d7634df5c3365c7bad58632417cb37278e87dc33a5a56e496888ad6490c"
+  },
+  {
+    "source": "initial-package/app/services/referrals.py",
+    "destination": "archive/initial-package/app/services/referrals.py",
+    "sha256_source": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058",
+    "sha256_imported": "9fd8b0efcfb29e070b185d41f1b6d10ec49e86d9a0391e52d9d86eb4ccba4058"
+  },
+  {
+    "source": "initial-package/app/services/telegram.py",
+    "destination": "archive/initial-package/app/services/telegram.py",
+    "sha256_source": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608",
+    "sha256_imported": "e10830b8c21676c6848d273835dd7249574bcf88d2726fe31472145c7f609608"
+  },
+  {
+    "source": "etc/nginx/sites-available/lavkashamana.ru",
+    "destination": "deploy/nginx/lavkashamana.ru.conf",
+    "sha256_source": "90bb6297b628cb7054dc36bab8a66eaec8a64ebd6f1371dce09550e676616eba",
+    "sha256_imported": "90bb6297b628cb7054dc36bab8a66eaec8a64ebd6f1371dce09550e676616eba"
+  }
+]

@@ -1,0 +1,554 @@
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from .config import settings
+from .db import Base, engine, get_db
+from .models import User, Category, Product, Order, OrderItem, ReferralCredit, Setting
+from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, SettingsPatch
+from .services.telegram import get_current_user, require_admin
+from .services.referrals import active_referrals_count, referral_rate, credit_referrer_for_paid_order
+from .services.cdek import cdek
+from .services.payments import get_gateway
+
+Base.metadata.create_all(engine)
+app = FastAPI(title=settings.app_name)
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def money(v):
+    return float(Decimal(v or 0))
+
+def user_json(db, u: User):
+    active = active_referrals_count(db, u)
+    rate = referral_rate(db, u)
+    return {
+        'id': u.id,
+        'telegram_id': u.telegram_id,
+        'username': u.username,
+        'first_name': u.first_name,
+        'phone': u.phone,
+        'email': u.email,
+        'city_code': u.city_code,
+        'city_name': u.city_name,
+        'delivery_type': u.delivery_type,
+        'delivery_point': u.delivery_point,
+        'address': u.address,
+        'is_admin': u.is_admin,
+        'balance': money(u.balance),
+        'active_referrals': active,
+        'referral_rate': money(rate),
+        'referral_link': f'https://t.me/{settings.bot_username}?start=ref_{u.telegram_id}',
+    }
+
+def category_json(c):
+    return {'id': c.id, 'name': c.name, 'slug': c.slug, 'sort_order': c.sort_order, 'active': c.active}
+
+def product_json(p):
+    return {
+        'id': p.id, 'category_id': p.category_id, 'name': p.name, 'description': p.description,
+        'price': money(p.price), 'stock': p.stock, 'image_url': p.image_url,
+        'weight_g': p.weight_g, 'length_cm': p.length_cm, 'width_cm': p.width_cm,
+        'height_cm': p.height_cm, 'active': p.active,
+    }
+
+@app.put('/api/profile')
+def update_profile(body: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    allowed = {
+        'phone',
+        'city_code',
+        'city_name',
+        'delivery_type',
+        'delivery_point',
+        'address',
+    }
+
+    for key in allowed:
+        if key not in body:
+            continue
+
+        value = body.get(key)
+
+        if key == 'city_code':
+            setattr(user, key, int(value) if value not in (None, '') else None)
+        else:
+            value = str(value).strip() if value not in (None, '') else None
+            setattr(user, key, value)
+
+    db.commit()
+    db.refresh(user)
+    return user_json(db, user)
+
+
+@app.get('/api/bootstrap')
+def bootstrap(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    cats = db.query(Category).filter(Category.active.is_(True)).order_by(Category.sort_order, Category.name).all()
+    products = db.query(Product).filter(Product.active.is_(True)).order_by(Product.id.desc()).all()
+    orders = db.query(Order).filter(Order.user_id == user.id).order_by(Order.id.desc()).limit(20).all()
+    return {
+        'app_name': settings.app_name,
+        'me': user_json(db, user),
+        'categories': [category_json(c) for c in cats],
+        'products': [product_json(p) for p in products],
+        'orders': [{'id': o.id, 'status': o.status, 'total': money(o.total), 'created_at': o.created_at.isoformat()} for o in orders],
+        'integrations': {'cdek': cdek.configured, 'payment_provider': settings.payment_provider},
+    }
+
+@app.get('/api/referrals')
+def referrals(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    referred = db.query(User).filter(User.referrer_id == user.id).order_by(User.created_at.desc()).all()
+    rows = []
+    for r in referred:
+        paid_count = db.query(func.count(Order.id)).filter(Order.user_id == r.id, Order.status == 'paid').scalar() or 0
+        rows.append({'telegram_id': r.telegram_id, 'username': r.username, 'first_name': r.first_name, 'bought': paid_count > 0, 'paid_orders': paid_count})
+    credits = db.query(ReferralCredit).filter(ReferralCredit.referrer_id == user.id).order_by(ReferralCredit.id.desc()).limit(50).all()
+    return {'active_count': active_referrals_count(db, user), 'rate': money(referral_rate(db, user)), 'people': rows, 'credits': [{'order_id': c.source_order_id, 'rate': c.rate_percent, 'base': money(c.base_amount), 'amount': money(c.amount), 'created_at': c.created_at.isoformat()} for c in credits]}
+
+@app.get('/api/cdek/cities')
+async def cdek_cities(q: str, user: User = Depends(get_current_user)):
+    return await cdek.cities(q)
+
+@app.get('/api/cdek/pvz')
+async def cdek_pvz(city_code: int, user: User = Depends(get_current_user)):
+    return await cdek.delivery_points(city_code)
+
+
+def cart_products(db: Session, items):
+    ids = [i.product_id for i in items]
+    products = {p.id: p for p in db.query(Product).filter(Product.id.in_(ids), Product.active.is_(True)).all()}
+    lines = []
+    for item in items:
+        p = products.get(item.product_id)
+        if not p:
+            raise HTTPException(400, f'Product {item.product_id} not found')
+        if item.qty > p.stock:
+            raise HTTPException(400, f'Not enough stock: {p.name}')
+        lines.append((p, item.qty))
+    return lines
+
+@app.post('/api/cdek/quote')
+async def cdek_quote(body: QuoteIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lines = cart_products(db, body.items)
+    email = (body.email or '').strip().lower()
+    if '@' not in email or '.' not in email.rsplit('@', 1)[-1]:
+        raise HTTPException(400, 'Укажите корректный email для кассового чека')
+    packages = []
+    for p, qty in lines:
+        packages.append({'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm})
+    return await cdek.tariff_list(body.to_city_code, packages, body.delivery_point)
+
+@app.post('/api/orders')
+async def create_order(body: OrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lines = cart_products(db, body.items)
+    email = (body.email or '').strip().lower()
+    if '@' not in email or '.' not in email.rsplit('@', 1)[-1]:
+        raise HTTPException(400, 'Укажите корректный email для кассового чека')
+    items_total = sum((Decimal(p.price) * qty for p, qty in lines), Decimal('0'))
+    requested_balance = Decimal(str(body.use_balance)).quantize(Decimal('0.01'))
+    available = Decimal(user.balance or 0)
+    balance_used = min(requested_balance, available, items_total)
+    delivery_total = Decimal(str(body.delivery_total)).quantize(Decimal('0.01'))
+    # Never trust a delivery price sent by the browser when CDEK is connected.
+    if cdek.configured:
+        if not body.city_code or not body.delivery_tariff_code:
+            raise HTTPException(400, 'Выберите город и тариф СДЭК')
+        packages = [{'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm} for p, qty in lines]
+        quote = await cdek.tariff_list(body.city_code, packages, body.delivery_point)
+        tariffs = quote.get('tariff_codes', []) if isinstance(quote, dict) else []
+        expected_mode = 4 if body.delivery_type == 'pickup' else 3 if body.delivery_type == 'courier' else None
+        if expected_mode is None:
+            raise HTTPException(400, 'Неизвестный способ доставки СДЭК')
+        selected = next((t for t in tariffs if int(t.get('tariff_code', -1)) == int(body.delivery_tariff_code) and int(t.get('delivery_mode', 0)) == expected_mode), None)
+        if not selected:
+            raise HTTPException(400, 'Выбранный тариф СДЭК не соответствует способу доставки')
+        delivery_total = Decimal(str(selected.get('delivery_sum', selected.get('total_sum', 0)))).quantize(Decimal('0.01'))
+    total = items_total - balance_used + delivery_total
+    order = Order(
+        user_id=user.id, status='new', items_total=items_total, balance_used=balance_used,
+        delivery_total=delivery_total, total=total, payment_provider=settings.payment_provider,
+        delivery_type=body.delivery_type, delivery_tariff_code=body.delivery_tariff_code,
+        delivery_point=body.delivery_point, city_code=body.city_code, city_name=body.city_name,
+        address=body.address, customer_name=body.customer_name, phone=body.phone, email=email,
+    )
+    # Запоминаем данные последнего оформления для следующего заказа.
+    user.phone = body.phone
+    user.email = email
+    user.city_code = body.city_code
+    user.city_name = body.city_name
+    user.delivery_type = body.delivery_type
+    user.delivery_point = body.delivery_point
+    user.address = body.address
+
+    db.add(order); db.flush()
+    for p, qty in lines:
+        db.add(OrderItem(order_id=order.id, product_id=p.id, name=p.name, qty=qty, unit_price=p.price, line_total=Decimal(p.price)*qty))
+    if balance_used > 0:
+        user.balance = available - balance_used
+    db.commit(); db.refresh(order)
+
+    if total <= 0:
+        await mark_paid(db, order)
+        return {'order_id': order.id, 'status': order.status, 'payment_url': None}
+
+    gateway = get_gateway()
+    receipt_db_lines = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+
+    total_cents = int(Decimal(order.total or 0) * 100)
+    delivery_cents = int(Decimal(order.delivery_total or 0) * 100)
+    goods_cents = max(0, total_cents - delivery_cents)
+
+    source_cents = [
+        max(0, int(Decimal(x.line_total or 0) * 100))
+        for x in receipt_db_lines
+    ]
+    source_sum = sum(source_cents)
+
+    receipt_items = []
+    remaining = goods_cents
+
+    for idx, line in enumerate(receipt_db_lines):
+        if remaining <= 0:
+            break
+
+        if idx == len(receipt_db_lines) - 1 or source_sum <= 0:
+            allocated = remaining
+        else:
+            allocated = min(
+                remaining,
+                goods_cents * source_cents[idx] // source_sum
+            )
+
+        remaining -= allocated
+
+        if allocated <= 0:
+            continue
+
+        qty = max(1, int(line.qty or 1))
+        base_cents, extra = divmod(allocated, qty)
+        description = (line.name or 'Товар')[:128]
+
+        common = {
+            'vat_code': 1,
+            'payment_mode': 'full_prepayment',
+            'payment_subject': 'commodity',
+        }
+
+        normal_qty = qty - extra
+
+        if base_cents > 0 and normal_qty > 0:
+            receipt_items.append({
+                'description': description,
+                'quantity': normal_qty,
+                'amount': {
+                    'value': f'{Decimal(base_cents) / Decimal(100):.2f}',
+                    'currency': 'RUB',
+                },
+                **common,
+            })
+
+        if extra > 0:
+            receipt_items.append({
+                'description': description,
+                'quantity': extra,
+                'amount': {
+                    'value': f'{Decimal(base_cents + 1) / Decimal(100):.2f}',
+                    'currency': 'RUB',
+                },
+                **common,
+            })
+
+    if delivery_cents > 0:
+        receipt_items.append({
+            'description': 'Доставка СДЭК',
+            'quantity': 1,
+            'amount': {
+                'value': f'{Decimal(delivery_cents) / Decimal(100):.2f}',
+                'currency': 'RUB',
+            },
+            'vat_code': 1,
+            'payment_mode': 'full_prepayment',
+            'payment_subject': 'service',
+        })
+
+    if not receipt_items and total_cents > 0:
+        receipt_items.append({
+            'description': f'Заказ №{order.id}',
+            'quantity': 1,
+            'amount': {
+                'value': f'{Decimal(total_cents) / Decimal(100):.2f}',
+                'currency': 'RUB',
+            },
+            'vat_code': 1,
+            'payment_mode': 'full_prepayment',
+            'payment_subject': 'commodity',
+        })
+
+    phone = ''.join(ch for ch in str(order.phone or '') if ch.isdigit())
+
+    if len(phone) == 10:
+        phone = '7' + phone
+    elif len(phone) == 11 and phone.startswith('8'):
+        phone = '7' + phone[1:]
+
+    receipt = {
+        'customer': {
+            'full_name': order.customer_name or 'Покупатель',
+            'phone': phone,
+            'email': order.email,
+        },
+        'items': receipt_items,
+        'internet': True,
+    }
+
+    payment = await gateway.create(
+        order.id,
+        Decimal(order.total),
+        f'Заказ №{order.id} — {settings.app_name}',
+        receipt=receipt,
+    )
+    order.payment_id = payment['id']
+    order.payment_url = payment.get('confirmation_url')
+    order.status = 'awaiting_payment'
+    db.commit()
+    return {'order_id': order.id, 'status': order.status, 'payment_url': order.payment_url}
+
+
+async def create_cdek_shipment(db: Session, order: Order):
+    if not cdek.configured or order.cdek_order_uuid:
+        return order.cdek_order_uuid
+    if not settings.cdek_shipment_point:
+        raise RuntimeError('CDEK shipment point is not configured')
+
+    lines = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+    packages = []
+    for idx, line in enumerate(lines, 1):
+        product = db.get(Product, line.product_id) if line.product_id else None
+        weight_each = max(1, int((product.weight_g if product else 100) or 100))
+        length = max(1, int((product.length_cm if product else 10) or 10))
+        width = max(1, int((product.width_cm if product else 10) or 10))
+        height = max(1, int((product.height_cm if product else 10) or 10))
+        qty = max(1, int(line.qty))
+        packages.append({
+            'number': f'{order.id}-{idx}',
+            'weight': weight_each * qty,
+            'length': length,
+            'width': width,
+            'height': height,
+            'items': [{
+                'name': (line.name or 'Товар')[:255],
+                'ware_key': str(line.product_id or f'{order.id}-{idx}'),
+                'payment': {'value': 0},
+                'cost': float(line.unit_price),
+                'weight': weight_each,
+                'amount': qty,
+            }],
+        })
+
+    if not packages:
+        raise RuntimeError('CDEK: order has no packages')
+
+    payload = {
+        'type': 1,
+        'number': f'LAVKA-{order.id}',
+        'tariff_code': int(order.delivery_tariff_code),
+        'shipment_point': settings.cdek_shipment_point,
+        'recipient': {
+            'name': order.customer_name,
+            'phones': [{'number': order.phone}],
+        },
+        'packages': packages,
+        'comment': f'Лавка Шамана, заказ {order.id}',
+    }
+
+    if order.delivery_type == 'pickup':
+        if not order.delivery_point:
+            raise RuntimeError('CDEK: delivery point is missing')
+        payload['delivery_point'] = order.delivery_point
+    elif order.delivery_type == 'courier':
+        if not order.city_code or not order.address:
+            raise RuntimeError('CDEK: courier address is missing')
+        payload['to_location'] = {
+            'code': int(order.city_code),
+            'address': order.address,
+        }
+    else:
+        raise RuntimeError('CDEK: unknown delivery type')
+
+    result = await cdek.create_order(payload)
+    requests = result.get('requests', []) if isinstance(result, dict) else []
+    failed = [r for r in requests if r.get('state') == 'INVALID' or r.get('errors')]
+    if failed:
+        raise RuntimeError(f'CDEK rejected order: {failed}')
+
+    entity = result.get('entity') if isinstance(result, dict) else None
+    uuid = entity.get('uuid') if isinstance(entity, dict) else None
+    if not uuid:
+        raise RuntimeError(f'CDEK did not return order UUID: {result}')
+
+    order.cdek_order_uuid = uuid
+    db.commit()
+    db.refresh(order)
+    return uuid
+
+
+async def mark_paid(db: Session, order: Order):
+    first_payment = order.status != 'paid'
+    if first_payment:
+        order.status = 'paid'
+        order.paid_at = datetime.utcnow()
+        items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+        for line in items:
+            if line.product_id:
+                product = db.get(Product, line.product_id)
+                if product:
+                    product.stock = max(0, product.stock - line.qty)
+        db.commit()
+        db.refresh(order)
+        credit_referrer_for_paid_order(db, order)
+
+    if cdek.configured and not order.cdek_order_uuid:
+        try:
+            await create_cdek_shipment(db, order)
+        except Exception as exc:
+            print(f'CDEK CREATE ERROR order={order.id}: {exc}')
+
+    return order
+
+
+@app.get('/api/payments/mock/{payment_id}/success')
+async def mock_success(payment_id: str, order_id: int, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order or order.payment_id != payment_id:
+        raise HTTPException(404, 'Order not found')
+    await mark_paid(db, order)
+    return RedirectResponse(url=f'/?paid={order.id}')
+
+@app.post('/api/payments/yookassa/webhook')
+async def yookassa_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    obj = payload.get('object') or {}
+    payment_id = obj.get('id')
+    if not payment_id:
+        return {'ok': True}
+    order = db.query(Order).filter(Order.payment_id == payment_id).first()
+    if not order:
+        return {'ok': True}
+    gateway = get_gateway()
+    payment = await gateway.fetch(payment_id)
+    if payment.get('status') == 'succeeded' and payment.get('paid', True):
+        await mark_paid(db, order)
+    return {'ok': True}
+
+# ---------------- Admin ----------------
+@app.get('/api/admin/dashboard')
+def admin_dashboard(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    users = db.query(func.count(User.id)).scalar() or 0
+    paid_orders = db.query(func.count(Order.id)).filter(Order.status == 'paid').scalar() or 0
+    revenue = db.query(func.coalesce(func.sum(Order.total), 0)).filter(Order.status == 'paid').scalar() or 0
+    return {'users': users, 'paid_orders': paid_orders, 'revenue': money(revenue)}
+
+@app.get('/api/admin/categories')
+def admin_categories(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return [category_json(c) for c in db.query(Category).order_by(Category.sort_order, Category.id).all()]
+
+@app.post('/api/admin/categories')
+def admin_category_create(body: CategoryIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = Category(**body.model_dump()); db.add(c); db.commit(); db.refresh(c); return category_json(c)
+
+@app.put('/api/admin/categories/{category_id}')
+def admin_category_update(category_id: int, body: CategoryIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = db.get(Category, category_id)
+    if not c: raise HTTPException(404, 'Category not found')
+    for k,v in body.model_dump().items(): setattr(c,k,v)
+    db.commit(); return category_json(c)
+
+@app.delete('/api/admin/categories/{category_id}')
+def admin_category_delete(category_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = db.get(Category, category_id)
+    if not c: raise HTTPException(404, 'Category not found')
+    db.delete(c); db.commit(); return {'ok': True}
+
+@app.post('/api/admin/upload')
+async def admin_upload(file: UploadFile = File(...), admin: User = Depends(require_admin)):
+    allowed = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
+    if file.content_type not in allowed:
+        raise HTTPException(400, 'Разрешены JPG, PNG и WEBP')
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(400, 'Файл больше 8 МБ')
+    import uuid
+    upload_dir = ROOT / 'static' / 'uploads'
+    upload_dir.mkdir(exist_ok=True)
+    name = f'{uuid.uuid4().hex}{allowed[file.content_type]}'
+    (upload_dir / name).write_bytes(data)
+    return {'url': f'/uploads/{name}'}
+
+@app.get('/api/admin/products')
+def admin_products(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return [product_json(p) for p in db.query(Product).order_by(Product.id.desc()).all()]
+
+@app.post('/api/admin/products')
+def admin_product_create(body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = Product(**body.model_dump()); db.add(p); db.commit(); db.refresh(p); return product_json(p)
+
+@app.put('/api/admin/products/{product_id}')
+def admin_product_update(product_id: int, body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(Product, product_id)
+    if not p: raise HTTPException(404, 'Product not found')
+    for k,v in body.model_dump().items(): setattr(p,k,v)
+    db.commit(); return product_json(p)
+
+@app.delete('/api/admin/products/{product_id}')
+def admin_product_delete(product_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(Product, product_id)
+    if not p: raise HTTPException(404, 'Product not found')
+    db.delete(p); db.commit(); return {'ok': True}
+
+@app.get('/api/admin/orders')
+def admin_orders(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    rows = db.query(Order).order_by(Order.id.desc()).limit(200).all()
+    return [{'id':o.id,'status':o.status,'total':money(o.total),'customer_name':o.customer_name,'phone':o.phone,'delivery_type':o.delivery_type,'city_name':o.city_name,'address':o.address,'created_at':o.created_at.isoformat()} for o in rows]
+
+@app.patch('/api/admin/orders/{order_id}/status')
+def admin_order_status(order_id: int, status: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    o = db.get(Order, order_id)
+    if not o: raise HTTPException(404, 'Order not found')
+    o.status = status; db.commit(); return {'ok': True, 'status': status}
+
+@app.get('/api/admin/settings')
+def admin_settings(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return {s.key:s.value for s in db.query(Setting).all()}
+
+@app.patch('/api/admin/settings')
+def admin_settings_patch(body: SettingsPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    for k,v in body.values.items():
+        s = db.get(Setting, k)
+        if not s: s = Setting(key=k, value=v); db.add(s)
+        else: s.value = v
+    db.commit(); return {'ok': True}
+
+
+# LAVKA PUBLIC INFO API
+@app.get('/api/info')
+def public_info(db: Session = Depends(get_db)):
+    allowed = {
+        'info_about',
+        'info_delivery',
+        'info_payment',
+        'info_returns',
+        'info_support',
+        'info_documents',
+        'info_privacy',
+        'info_consent',
+        'info_offer',
+        'info_seller',
+    }
+    rows = db.query(Setting).filter(Setting.key.in_(allowed)).all()
+    return {row.key: row.value for row in rows}
+
+app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')

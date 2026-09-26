@@ -1,0 +1,13 @@
+{
+  "services": {
+    "api": {
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "./static/uploads",
+          "target": "/app/static/uploads"
+        }
+      ]
+    }
+  }
+}

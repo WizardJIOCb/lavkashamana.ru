@@ -1,0 +1,2383 @@
+
+/* LAVKA_CATEGORY_ICONS_V1 */
+function lavkaCategoryIcon(c){
+  function byName(name){
+    const n = String(name || '').toLowerCase().replace(/ё/g, 'е');
+    if (/гриб|мухомор|сома/.test(n)) return '🍄';
+    if (/мед|пчел|прополис/.test(n)) return '🍯';
+    if (/трав|иван.?чай|саган/.test(n)) return '🌿';
+    if (/чай|чаи|чаев|пуэр|улун/.test(n)) return '🍵';
+    return '';
+  }
+  const own = byName(c?.name);
+  if (own) return own;
+  const root = c ? categoryRoot(c) : null;
+  return byName(root?.name) || '🛍️';
+}
+function lavkaSetCategoryIcons(){
+  document.querySelectorAll('.pill[data-cat]').forEach(button => {
+    const id = button.dataset.cat;
+    const category = (state.boot?.categories || []).find(
+      c => String(c.id) === id
+    );
+    button.dataset.categoryIcon =
+      id === 'all' ? '🛍️' : lavkaCategoryIcon(category);
+  });
+}
+
+
+/* LAVKA_PRODUCT_LABELS_V1 */
+function lavkaDisplayMeta(p){
+  const raw = String(p?.description || '');
+  const matches = [...raw.matchAll(
+    /\[\[(LV4|VARIANT):([^|\]]+)\|([0-9.]+)\|(g|ml|pcs)\]\]/g
+  )];
+  const m = matches.find(x => x[1] === 'LV4') || matches[0];
+  const amount = m ? Number(m[3]) : NaN;
+  const units = {g:'г', ml:'мл', pcs:'шт.'};
+  const label = m && Number.isFinite(amount) && amount > 0
+    ? new Intl.NumberFormat('ru-RU', {
+        maximumFractionDigits: 10
+      }).format(amount) + ' ' + units[m[4]]
+    : '';
+  return {
+    label,
+    description: raw.replace(
+      /\[\[(?:LV4|VARIANT):[^\]]*\]\]/g, ''
+    ).trim()
+  };
+}
+function lavkaDisplayName(p){
+  const name = String(p?.name || '');
+  const label = lavkaDisplayMeta(p).label;
+  return label ? name + ' · ' + label : name;
+}
+
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const DEV_USER = { id: 777000, username: 'shamanchik007' };
+const state = { boot:null, tab:'shop', category:'all', cart:JSON.parse(localStorage.getItem('shaman_cart')||'{}') };
+const $ = s => document.querySelector(s);
+const rub = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(Number(n||0));
+const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+function authHeaders(){
+  const h={'Content-Type':'application/json'};
+  if (tg?.initData) h['X-Telegram-Init-Data']=tg.initData;
+  else { h['X-Dev-Telegram-Id']=String(DEV_USER.id); h['X-Dev-Username']=DEV_USER.username; }
+  const ref = new URLSearchParams(location.search).get('ref'); if(ref) h['X-Referrer-Telegram-Id']=ref;
+  return h;
+}
+async function api(path, opts={}){
+  const r = await fetch(path,{...opts,headers:{...authHeaders(),...(opts.headers||{})}});
+  if(!r.ok){ let msg=await r.text(); try{msg=JSON.parse(msg).detail||msg}catch{} throw new Error(msg); }
+  const ct=r.headers.get('content-type')||''; return ct.includes('json')?r.json():r.text();
+}
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2400); }
+function saveCart(){ localStorage.setItem('shaman_cart',JSON.stringify(state.cart)); updateBadge(); }
+function updateBadge(){ const n=Object.values(state.cart).reduce((a,b)=>a+b,0); $('#cartBadge').textContent=n?`(${n})`:''; }
+function cartLines(){ if(!state.boot)return[]; return Object.entries(state.cart).map(([id,qty])=>[state.boot.products.find(p=>p.id==id),qty]).filter(x=>x[0]); }
+function addCart(id){ const p=state.boot.products.find(x=>x.id===id); if(!p||p.stock<1)return; state.cart[id]=Math.min((state.cart[id]||0)+1,p.stock); saveCart(); toast('Добавлено в корзину'); render(); }
+function setQty(id,delta){ const p=state.boot.products.find(x=>x.id==id); let q=(state.cart[id]||0)+delta; if(q<=0)delete state.cart[id]; else state.cart[id]=Math.min(q,p.stock); saveCart(); render(); }
+
+async function boot(){
+  try{ state.boot=await api('/api/bootstrap'); $('#adminTab').classList.toggle('hidden',!state.boot.me.is_admin); render(); }
+  catch(e){ $('#content').innerHTML=`<div class="panel"><h2>Не удалось открыть приложение</h2><p class="muted">${esc(e.message)}</p></div>`; }
+}
+function nav(){ document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); }
+function render(){ nav(); updateBadge(); const c=$('#content'); if(!state.boot)return; if(state.tab==='shop')c.innerHTML=shopView(); if(state.tab==='cart')c.innerHTML=cartView(); if(state.tab==='profile')c.innerHTML=profileView(); if(state.tab==='admin')c.innerHTML=adminView(); bind(); }
+
+
+/* LAVKA_NESTED_CATEGORIES_V1 */
+
+function categoryDepth(c){
+  return String(c?.slug || '').split('--').filter(Boolean).length || 1;
+}
+
+function categoryParent(c){
+  const slug = String(c?.slug || '');
+  if(!slug.includes('--')) return null;
+
+  const parentSlug = slug.split('--').slice(0,-1).join('--');
+
+  return (state.boot?.categories || []).find(x =>
+    String(x.slug || '') === parentSlug
+  ) || null;
+}
+
+function categoryRoot(c){
+  let cur = c;
+  let p;
+
+  while(cur && (p = categoryParent(cur))){
+    cur = p;
+  }
+
+  return cur;
+}
+
+function categoryChildren(c){
+  if(!c) return [];
+
+  const prefix = String(c.slug || '') + '--';
+
+  return (state.boot?.categories || []).filter(x => {
+    const slug = String(x.slug || '');
+
+    if(!slug.startsWith(prefix)) return false;
+
+    const rest = slug.slice(prefix.length);
+
+    return rest && !rest.includes('--');
+  });
+}
+
+function categoryDescendantIds(c){
+  if(!c) return [];
+
+  const slug = String(c.slug || '');
+  const prefix = slug + '--';
+
+  return (state.boot?.categories || [])
+    .filter(x => {
+      const xs = String(x.slug || '');
+      return xs === slug || xs.startsWith(prefix);
+    })
+    .map(x => Number(x.id));
+}
+
+function categoryBaseSlug(c){
+  const slug = String(c?.slug || '');
+  return slug.split('--').filter(Boolean).pop() || '';
+}
+
+function sortedCategories(){
+  return [...(state.boot?.categories || [])].sort((a,b) => {
+    const da = categoryDepth(a);
+    const db = categoryDepth(b);
+
+    if(da !== db) return da - db;
+
+    return String(a.slug || '').localeCompare(
+      String(b.slug || ''),
+      'ru'
+    );
+  });
+}
+
+function shopView(){
+  const cats = state.boot.categories || [];
+  const roots = cats.filter(c => categoryDepth(c) === 1);
+
+  const selected =
+    state.category === 'all'
+      ? null
+      : cats.find(c => String(c.id) === String(state.category));
+
+  const root = selected ? categoryRoot(selected) : null;
+
+  const firstRow = `
+    <div class="pill-row">
+      <button class="pill ${state.category==='all'?'active':''}" data-cat="all">
+        Все
+      </button>
+
+      ${roots.map(c => `
+        <button
+          class="pill ${root && String(root.id)===String(c.id)?'active':''}"
+          data-cat="${c.id}">
+          ${esc(c.name)}
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  let subRows = '';
+
+  if(root){
+    const children = categoryChildren(root);
+
+    if(children.length){
+      subRows += `
+        <div class="pill-row" style="margin-top:10px">
+          <button
+            class="pill ${String(state.category)===String(root.id)?'active':''}"
+            data-cat="${root.id}">
+            Все ${esc(root.name)}
+          </button>
+
+          ${children.map(c => `
+            <button
+              class="pill ${String(state.category)===String(c.id)?'active':''}"
+              data-cat="${c.id}">
+              ${esc(c.name)}
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    if(selected && selected.id !== root.id){
+      const level3 = categoryChildren(selected);
+
+      if(level3.length){
+        subRows += `
+          <div class="pill-row" style="margin-top:10px">
+            ${level3.map(c => `
+              <button
+                class="pill ${String(state.category)===String(c.id)?'active':''}"
+                data-cat="${c.id}">
+                ${esc(c.name)}
+              </button>
+            `).join('')}
+          </div>
+        `;
+      }
+    }
+  }
+
+  let products = state.boot.products;
+
+  if(selected){
+    const ids = categoryDescendantIds(selected);
+
+    products = products.filter(p =>
+      ids.includes(Number(p.category_id))
+    );
+  }
+
+  return `
+    <section class="section">
+      ${firstRow}
+      ${subRows}
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Каталог</h2>
+        <span class="muted">${products.length} поз.</span>
+      </div>
+
+      ${
+        products.length
+          ? `<div class="grid">
+              ${products.map(p => `
+                <article class="card">
+                  <img
+                    class="product-img"
+                    src="${esc(p.image_url||'/logo.jpg')}"
+                    onerror="this.src='/logo.jpg'">
+
+                  <div class="product-body">
+                    <div class="product-title">${esc(lavkaDisplayName(p))}</div>
+                    <div class="product-desc">${esc(lavkaDisplayMeta(p).description)}</div>
+
+                    <div class="price-row">
+                      <div>
+                        <div class="price">${rub(p.price)}</div>
+                        
+                      </div>
+
+                      <button
+                        class="btn gold"
+                        data-add="${p.id}"
+                        ${p.stock<1?'disabled':''}>
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              `).join('')}
+            </div>`
+          : `<div class="empty">
+              В этой категории пока нет товаров.
+            </div>`
+      }
+    </section>
+  `;
+}
+
+function cartView(){
+  const lines=cartLines(), total=lines.reduce((s,[p,q])=>s+p.price*q,0);
+  if(!lines.length)return `<div class="panel empty"><h2>Корзина пустая</h2><p>Добавь товары из каталога.</p><button class="btn" data-go="shop">В каталог</button></div>`;
+  return `<section class="section"><div class="section-head"><h2>Корзина</h2><strong>${rub(total)}</strong></div><div class="panel">${lines.map(([p,q])=>`<div class="cart-line"><img src="${esc(p.image_url||'/logo.jpg')}"><div><strong>${esc(lavkaDisplayName(p))}</strong><div class="muted">${rub(p.price)} × ${q}</div></div><div class="qty"><button data-qty="${p.id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${p.id}" data-delta="1">+</button></div></div>`).join('')}</div></section>
+  <section class="section"><div class="panel"><div class="section-head"><h2>Итого</h2><strong>${rub(total)}</strong></div><p class="muted">Доставка и внутренний баланс рассчитываются на оформлении.</p><button class="btn gold" id="checkoutBtn">Оформить заказ</button></div></section>`;
+}
+function profileView(){
+  const m=state.boot.me;
+
+  return `
+    <section class="section">
+      <div class="panel">
+
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div>
+            <h2>${esc(m.first_name||m.username||'Покупатель')}</h2>
+          </div>
+
+          <span class="badge">@${esc(m.username||'')}</span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat">
+            <strong>${rub(m.balance)}</strong>
+            <span>внутренний баланс</span>
+          </div>
+
+          <div class="stat">
+            <strong>${m.referral_rate}%</strong>
+            <span>реферальная ставка</span>
+          </div>
+
+          <div class="stat">
+            <strong>${m.active_referrals}</strong>
+            <span>купивших приглашённых</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel">
+
+        <h2>Данные для заказов</h2>
+
+        <p class="muted">
+          Сохраняются в профиле и подставляются при следующем оформлении.
+        </p>
+
+        <div class="form">
+
+          <div class="field">
+            <label>Телефон</label>
+            <input
+              id="profilePhone"
+              value="${esc(m.phone||'')}"
+              placeholder="+7...">
+          </div>
+
+          <div class="field">
+            <label>Последний город доставки</label>
+            <input
+              value="${esc(m.city_name||'')}"
+              readonly
+              placeholder="Сохранится после оформления заказа">
+          </div>
+
+          <div class="field">
+            <label>Предпочитаемый способ доставки</label>
+
+            <select id="profileDelivery">
+              <option
+                value="pickup"
+                ${m.delivery_type!=='courier'?'selected':''}>
+                СДЭК ПВЗ
+              </option>
+
+              <option
+                value="courier"
+                ${m.delivery_type==='courier'?'selected':''}>
+                СДЭК курьер
+              </option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Адрес для курьера</label>
+            <input
+              id="profileAddress"
+              value="${esc(m.address||'')}"
+              placeholder="Улица, дом, квартира">
+          </div>
+
+          <button
+            class="btn gold"
+            type="button"
+            onclick="saveLavkaProfile()">
+            Сохранить данные
+          </button>
+
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel">
+
+        <h2>Приглашай друзей</h2>
+
+        <div class="ref-link">
+          <input
+            value="${esc(m.referral_link)}"
+            readonly
+            id="refLink">
+
+          <button class="btn" id="copyRef">
+            Копировать
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+
+      <div class="section-head">
+        <h2>Заказы</h2>
+      </div>
+
+      <div class="panel">
+        ${
+          state.boot.orders.length
+            ? state.boot.orders.map(o=>`
+                <div class="order">
+                  <div>
+                    <strong>Заказ №${o.id}</strong>
+                    <div class="muted">
+                      ${new Date(o.created_at).toLocaleString('ru-RU')}
+                    </div>
+                  </div>
+
+                  <div style="text-align:right">
+                    <span class="badge">${esc(o.status)}</span>
+                    <div><strong>${rub(o.total)}</strong></div>
+                  </div>
+                </div>
+              `).join('')
+            : '<div class="empty">Заказов пока нет.</div>'
+        }
+      </div>
+
+    </section>
+
+    <section class="section">
+      <button class="btn secondary" id="refsBtn">
+        История рефералов
+      </button>
+    </section>
+  `;
+}
+
+async function saveLavkaProfile(){
+  try{
+    const body={
+      phone:document.getElementById('profilePhone')?.value.trim() || null,
+      delivery_type:document.getElementById('profileDelivery')?.value || 'pickup',
+      address:document.getElementById('profileAddress')?.value.trim() || null
+    };
+
+    const me=await api('/api/profile',{
+      method:'PUT',
+      body:JSON.stringify(body)
+    });
+
+    state.boot.me=me;
+    render();
+    toast('Данные сохранены');
+
+  }catch(e){
+    toast(e.message);
+  }
+}
+
+function adminView(){ if(!state.boot.me.is_admin)return '<div class="panel">Нет доступа</div>'; return `<section class="section"><div class="panel"><div class="eyebrow">УПРАВЛЕНИЕ</div><h2>Админка</h2><p class="muted">Товары и категории меняются без правки кода.</p><div class="admin-actions"><button class="btn gold" id="newProduct">+ Товар</button><button class="btn" id="newCategory">+ Категория</button><button class="btn secondary" id="reloadAdmin">Обновить</button></div></div></section><section class="section"><div class="section-head"><h2>Товары</h2></div><div class="admin-list">${state.boot.products.map(p=>`<div class="admin-row"><div><strong>${esc(lavkaDisplayName(p))}</strong><div class="muted">${rub(p.price)}</div></div><div class="admin-actions"><button class="btn secondary" data-edit-product="${p.id}">Править</button></div></div>`).join('')||'<div class="empty">Пока нет товаров</div>'}</div></section><section class="section"><div class="section-head"><h2>Категории</h2></div><div class="admin-list">${state.boot.categories.map(c=>`<div class="admin-row"><div><strong>${esc(c.name)}</strong><div class="muted">${esc(c.slug)}</div></div><div class="admin-actions">${categoryDepth(c)===1?`<button class="btn gold" data-edit-root-category="${c.id}">Название</button>`:''}<button class="btn secondary" data-edit-category="${c.id}">Править</button></div></div>`).join('')}</div></section><section class="section"><button class="btn secondary" id="adminOrders">Заказы покупателей</button></section>`; }
+
+function bind(){
+  lavkaSetCategoryIcons();
+  document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{state.category=b.dataset.cat;render()});
+  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addCart(Number(b.dataset.add)));
+  document.querySelectorAll('[data-qty]').forEach(b=>b.onclick=()=>setQty(Number(b.dataset.qty),Number(b.dataset.delta)));
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.go;render()});
+  $('#checkoutBtn')&&($('#checkoutBtn').onclick=checkoutModal);
+  $('#copyRef')&&($('#copyRef').onclick=async()=>{await navigator.clipboard.writeText($('#refLink').value);toast('Ссылка скопирована')});
+  $('#refsBtn')&&($('#refsBtn').onclick=showReferrals);
+  $('#newProduct')&&($('#newProduct').onclick=()=>productModal());
+  $('#newCategory')&&($('#newCategory').onclick=()=>categoryModal());
+  $('#reloadAdmin')&&($('#reloadAdmin').onclick=async()=>{state.boot=await api('/api/bootstrap');render()});
+  document.querySelectorAll('[data-edit-product]').forEach(b=>b.onclick=()=>productModal(state.boot.products.find(p=>p.id==b.dataset.editProduct)));
+  document.querySelectorAll('[data-edit-category]').forEach(b=>b.onclick=()=>categoryModal(state.boot.categories.find(c=>c.id==b.dataset.editCategory)));
+  document.querySelectorAll('[data-edit-root-category]').forEach(b=>b.onclick=()=>rootCategoryModal(state.boot.categories.find(c=>c.id==b.dataset.editRootCategory)));
+  $('#adminOrders')&&($('#adminOrders').onclick=showAdminOrders);
+}
+function modal(html){ const d=document.createElement('div'); d.className='modal'; d.innerHTML=`<div class="modal-card">${html}</div>`; d.onclick=e=>{if(e.target===d)d.remove()}; document.body.appendChild(d); return d; }
+
+async function checkoutModal(){
+  const lines=cartLines();
+  const items=lines.map(([p,q])=>({product_id:p.id,qty:q}));
+  const m=state.boot.me;
+
+  const d=modal(`
+    <div class="section-head">
+      <h2>Оформление</h2>
+      <button class="btn secondary" id="closeM">Закрыть</button>
+    </div>
+
+    <div class="form">
+
+      <div class="field">
+        <label>Имя</label>
+        <input id="coName" value="${esc(m.first_name||'')}">
+      </div>
+
+      <div class="field">
+        <label>Телефон</label>
+        <input
+          id="coPhone"
+          value="${esc(m.phone||'')}"
+          placeholder="+7...">
+      </div>
+
+      <div class="field">
+        <label>Email для кассового чека</label>
+        <input id="coEmail" type="email" value="${esc(m.email||"")}" placeholder="name@example.com">
+        <div style="font-size:12px;opacity:.72;margin-top:6px">Электронная почта используется для направления кассового чека после оплаты заказа.</div>
+      </div>
+
+      <div class="field">
+        <label>Город доставки</label>
+
+        <input
+          id="coCity"
+          value="${esc(m.city_name||'')}"
+          placeholder="Начните вводить город">
+
+        <div id="cityResults"></div>
+      </div>
+
+      <div class="field">
+        <label>Способ доставки</label>
+
+        <select id="coType">
+          <option
+            value="pickup"
+            ${m.delivery_type!=='courier'?'selected':''}>
+            СДЭК ПВЗ
+          </option>
+
+          <option
+            value="courier"
+            ${m.delivery_type==='courier'?'selected':''}>
+            СДЭК курьер
+          </option>
+        </select>
+      </div>
+
+      <div class="field" id="tariffField">
+        <label>Тариф</label>
+
+        <select id="coTariff">
+          <option value="">Выберите тариф</option>
+        </select>
+      </div>
+
+      <div class="field hidden" id="pvzField">
+        <label>Пункт выдачи</label>
+
+        <input id="coPvzSearch" type="search"
+          placeholder="Улица, дом, название или код ПВЗ"
+          autocomplete="off" aria-label="Поиск пункта выдачи СДЭК">
+        <div id="pvzHint" aria-live="polite"></div>
+        <select id="coPvz">
+          <option value="">Выберите ПВЗ</option>
+        </select>
+      </div>
+
+      <div class="field hidden" id="addressField">
+        <label>Адрес курьерской доставки</label>
+
+        <input
+          id="coAddress"
+          value="${esc(m.address||'')}"
+          placeholder="Улица, дом, квартира">
+      </div>
+
+      <div class="field">
+        <label>Использовать внутренний баланс</label>
+
+        <input
+          id="coBalance"
+          type="number"
+          min="0"
+          max="${m.balance}"
+          value="0">
+      </div>
+
+      <div class="notice" id="deliveryNotice">
+        Выберите город для расчёта доставки.
+      </div>
+
+      <button class="btn gold" id="placeOrder">
+        Создать заказ
+      </button>
+
+    </div>
+  `);
+
+  $('#closeM').onclick=()=>d.remove();
+
+  let city =
+    m.city_code
+      ? {code:Number(m.city_code),name:m.city_name||''}
+      : null;
+
+  let tariffs=[];
+
+
+
+  let pvzRows=[];
+  const normalizePvz=v=>String(v||'').toLowerCase()
+    .replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim();
+
+  function renderPvz(){
+    const select=$('#coPvz');
+    const selected=select.value;
+    const words=normalizePvz($('#coPvzSearch').value).split(' ').filter(Boolean);
+    const found=pvzRows.filter(x=>words.every(w=>
+      normalizePvz([x.code,x.name,x.location?.address].join(' ')).includes(w)
+    ));
+    const shown=found.slice(0,50);
+    const saved=pvzRows.find(x=>String(x.code)===selected);
+    if(saved&&!shown.includes(saved)) shown.unshift(saved);
+
+    select.replaceChildren(new Option(
+      found.length?'Выберите ПВЗ':'ПВЗ не найдены',''
+    ));
+    shown.forEach(x=>select.add(new Option(
+      [x.code,x.name,x.location?.address].filter(Boolean).join(' · '),
+      String(x.code)
+    )));
+    select.value=saved?selected:'';
+    $('#pvzHint').textContent='Найдено: '+found.length+
+      (found.length>50?'. Уточните улицу или номер дома.':'.');
+  }
+
+  const cleanTariff=v=>String(v)
+    .replace(/\s+до\s+\d{1,2}(?:[.:]\d{2}){0,2}/gi,'')
+    .replace(/\b\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\b/g,'')
+    .replace(/\s{2,}/g,' ').trim();
+
+  $('#coPvzSearch').oninput=renderPvz;
+
+  const renderTariffs=()=>{
+    const mode=$('#coType').value;
+
+    const filtered=tariffs.filter(t=>{
+      const dm=Number(t.delivery_mode||0);
+
+      return mode==='pickup'
+        ? [4].includes(dm)
+        : [3].includes(dm);
+    });
+
+    $('#coTariff').innerHTML=
+      '<option value="">Выберите тариф</option>'+
+      filtered.map(t=>`
+        <option
+          value="${t.tariff_code}"
+          data-price="${t.delivery_sum??t.total_sum??0}">
+          ${esc(cleanTariff(t.tariff_name||('Тариф '+t.tariff_code)))}
+          — ${rub(t.delivery_sum??t.total_sum??0)}
+          · ${t.period_min??'?'}–${t.period_max??'?'} дн.
+        </option>
+      `).join('');
+  };
+
+
+  const updateMode=()=>{
+    const pickup=$('#coType').value==='pickup';
+
+    $('#pvzField').classList.toggle('hidden',!pickup);
+    $('#addressField').classList.toggle('hidden',pickup);
+
+    renderTariffs();
+  };
+
+
+  async function loadCityData(savedPoint=null){
+    pvzRows=[];
+    $('#coPvzSearch').value='';
+    renderPvz();
+    if(!city?.code) return;
+
+    try{
+      const qr=await api('/api/cdek/quote',{
+        method:'POST',
+        body:JSON.stringify({
+          items,
+          to_city_code:city.code
+        })
+      });
+
+      tariffs=qr.tariff_codes||[];
+      renderTariffs();
+
+      const pvz=await api(
+        '/api/cdek/pvz?city_code='+city.code
+      );
+      pvzRows=Array.isArray(pvz)?pvz:[];
+      $('#coPvzSearch').value='';
+      renderPvz();
+
+      if(savedPoint){
+        const saved=pvzRows.find(x=>String(x.code)===String(savedPoint));
+        if(saved){
+          const select=$('#coPvz');
+          if(!Array.from(select.options).some(o=>o.value===String(saved.code))){
+            select.add(new Option(
+              [saved.code,saved.name,saved.location?.address].filter(Boolean).join(' · '),
+              String(saved.code)
+            ));
+          }
+          select.value=String(saved.code);
+        }
+      }
+
+      $('#deliveryNotice').textContent=
+        `Найдено тарифов: ${tariffs.length}. ПВЗ: ${pvz.length}.`;
+
+    }catch(e){
+      tariffs=[];
+      renderTariffs();
+
+      $('#deliveryNotice').textContent=
+        'СДЭК пока не подключён: '+e.message;
+    }
+  }
+
+
+  $('#coType').onchange=updateMode;
+  updateMode();
+
+
+  let timer;
+
+  $('#coCity').oninput=()=>{
+    clearTimeout(timer);
+
+    timer=setTimeout(async()=>{
+      const q=$('#coCity').value.trim();
+
+      if(q.length<2) return;
+
+      try{
+        const rows=await api(
+          '/api/cdek/cities?q='+encodeURIComponent(q)
+        );
+
+        $('#cityResults').innerHTML=
+          rows.slice(0,7).map(c=>`
+            <button
+              class="pill"
+              data-city-code="${c.code}"
+              data-city-name="${esc(c.city)}">
+              ${esc(c.city)} · ${esc(c.region||'')}
+            </button>
+          `).join('');
+
+        document
+          .querySelectorAll('[data-city-code]')
+          .forEach(b=>{
+
+            b.onclick=async()=>{
+              city={
+                code:Number(b.dataset.cityCode),
+                name:b.dataset.cityName
+              };
+
+              $('#coCity').value=city.name;
+              $('#cityResults').innerHTML='';
+
+              await loadCityData();
+            };
+          });
+
+      }catch(e){
+        $('#deliveryNotice').textContent=
+          'Ошибка поиска города: '+e.message;
+      }
+
+    },350);
+  };
+
+
+  if(city?.code){
+    await loadCityData(m.delivery_point||null);
+  }
+
+
+  $('#placeOrder').onclick=async()=>{
+    try{
+      const pickup=$('#coType').value==='pickup';
+
+      const tariff=
+        Number($('#coTariff').value||0)||null;
+
+      const pvz=
+        pickup
+          ? ($('#coPvz').value||null)
+          : null;
+
+      const payload={
+        items,
+
+        customer_name:$('#coName').value.trim(),
+
+        phone:$('#coPhone').value.trim(),
+        email:$('#coEmail').value.trim(),
+
+        city_code:city?.code||null,
+
+        city_name:
+          city?.name ||
+          $('#coCity').value.trim() ||
+          null,
+
+        delivery_type:$('#coType').value,
+
+        delivery_tariff_code:tariff,
+
+        delivery_point:pvz,
+
+        delivery_total:0,
+
+        address:
+          pickup
+            ? null
+            : ($('#coAddress').value.trim()||null),
+
+        use_balance:Number($('#coBalance').value||0)
+      };
+
+      if(!payload.customer_name||!payload.phone||!payload.email){
+        throw new Error('Заполни имя, телефон и email для кассового чека');
+      }
+
+      if(
+        state.boot.integrations.cdek &&
+        (!payload.city_code||!payload.delivery_tariff_code)
+      ){
+        throw new Error('Выбери город и тариф СДЭК');
+      }
+
+      if(
+        state.boot.integrations.cdek &&
+        pickup &&
+        !payload.delivery_point
+      ){
+        throw new Error('Выбери ПВЗ');
+      }
+
+      if(
+        state.boot.integrations.cdek &&
+        !pickup &&
+        !payload.address
+      ){
+        throw new Error('Укажи адрес курьерской доставки');
+      }
+
+      const r=await api('/api/orders',{
+        method:'POST',
+        body:JSON.stringify(payload)
+      });
+
+      state.cart={};
+      saveCart();
+
+      d.remove();
+
+      if(r.payment_url){
+        if(tg?.openLink) tg.openLink(r.payment_url);
+        else location.href=r.payment_url;
+      }else{
+        toast('Заказ создан');
+        await boot();
+      }
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+}
+
+async function showReferrals(){ try{const r=await api('/api/referrals'); modal(`<div class="section-head"><h2>Реферальная программа</h2><span class="badge">${r.rate}%</span></div><p class="muted">Активных покупателей: ${r.active_count}</p><div class="admin-list">${r.people.map(p=>`<div class="admin-row"><div><strong>${esc(p.first_name||p.username||p.telegram_id)}</strong><div class="muted">${p.bought?'Покупал':'Ещё не покупал'}</div></div><span class="badge">${p.paid_orders} заказ.</span></div>`).join('')||'<div class="empty">Пока никого</div>'}</div><h3>Начисления</h3><div class="admin-list">${r.credits.map(c=>`<div class="admin-row"><div>Заказ №${c.order_id}<div class="muted">${c.rate}% от ${rub(c.base)}</div></div><strong>+${rub(c.amount)}</strong></div>`).join('')||'<div class="empty">Начислений пока нет</div>'}</div>`);}catch(e){toast(e.message)} }
+
+function productModal(p={}){
+  function readMeta(prod){
+    const raw=String(prod?.description||'');
+    const m=raw.match(/\[\[VARIANT:([^|\]]+)\|([0-9.]+)\|(g|ml|pcs)\]\]/);
+
+    if(!m){
+      return {
+        group:null,
+        amount:prod?.weight_g||'',
+        unit:'g',
+        description:raw
+      };
+    }
+
+    return {
+      group:m[1],
+      amount:Number(m[2]),
+      unit:m[3],
+      description:raw.replace(m[0],'').trim()
+    };
+  }
+
+  const firstMeta=p.id?readMeta(p):null;
+  const group=firstMeta?.group || ('grp_'+Date.now());
+
+  let items=[];
+
+  if(p.id && firstMeta?.group){
+    items=state.boot.products.filter(x=>{
+      const m=readMeta(x);
+      return m.group===firstMeta.group;
+    });
+  }else if(p.id){
+    items=[p];
+  }
+
+  const first=items[0]||p||{};
+  const cleanDescription=p.id?readMeta(first).description:'';
+
+  function variantRow(item={}){
+    const m=item.id
+      ? readMeta(item)
+      : {amount:'',unit:'g'};
+
+    return `
+      <div class="panel variant-row"
+           data-id="${item.id||''}"
+           style="padding:12px;margin-bottom:12px">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+          <div class="field">
+            <label>Количество</label>
+            <input class="vAmount"
+                   type="number"
+                   min="0.01"
+                   step="0.01"
+                   value="${m.amount??''}"
+                   placeholder="Например 330">
+          </div>
+
+          <div class="field">
+            <label>Единица</label>
+            <select class="vUnit">
+              <option value="g" ${m.unit==='g'?'selected':''}>граммы</option>
+              <option value="ml" ${m.unit==='ml'?'selected':''}>миллилитры</option>
+              <option value="pcs" ${m.unit==='pcs'?'selected':''}>штуки</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="field">
+          <label>Цена, ₽</label>
+          <input class="vPrice"
+                 type="number"
+                 min="0"
+                 value="${item.price??0}">
+        </div>
+
+        <button class="btn secondary removeVariant" type="button">
+          Удалить вариант
+        </button>
+      </div>
+    `;
+  }
+
+  const cats=(
+    typeof sortedCategories==='function'
+      ? sortedCategories()
+      : state.boot.categories
+  );
+
+  const d=modal(`
+    <div class="section-head">
+      <h2>${p.id?'Редактировать товар':'Новый товар'}</h2>
+      <button class="btn secondary" id="closeM">Закрыть</button>
+    </div>
+
+    <div class="form">
+
+      <div class="field">
+        <label>Название</label>
+        <input id="pName" value="${esc(first.name||'')}">
+      </div>
+
+      <div class="field">
+        <label>Категория</label>
+        <select id="pCat">
+          <option value="">Без категории</option>
+          ${cats.map(c=>`
+            <option value="${c.id}" ${first.category_id==c.id?'selected':''}>
+              ${typeof categoryDepth==='function'?'↳ '.repeat(Math.max(0,categoryDepth(c)-1)):''}${esc(c.name)}
+            </option>
+          `).join('')}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Описание</label>
+        <textarea id="pDesc">${esc(cleanDescription)}</textarea>
+      </div>
+
+      <div class="field">
+        <label>Фото</label>
+        <input id="pImg"
+               value="${esc(first.image_url||'')}"
+               placeholder="Ссылка или загруженный файл">
+
+        <input id="pFile"
+               type="file"
+               accept="image/jpeg,image/png,image/webp">
+
+        <button class="btn secondary" id="uploadP" type="button">
+          Загрузить фото
+        </button>
+      </div>
+
+      <div class="section-head" style="margin-top:14px">
+        <h3>Варианты товара</h3>
+        <button class="btn secondary" id="addVariant" type="button">
+          + Вариант
+        </button>
+      </div>
+
+      <div id="variantRows">
+        ${items.length ? items.map(variantRow).join('') : variantRow()}
+      </div>
+
+      <button class="btn gold" id="saveP">
+        Сохранить
+      </button>
+
+      ${p.id?'<button class="btn danger" id="delP">Удалить товар</button>':''}
+    </div>
+  `);
+
+  $('#closeM').onclick=()=>d.remove();
+
+  function bindRemove(){
+    d.querySelectorAll('.removeVariant').forEach(btn=>{
+      btn.onclick=()=>{
+        if(d.querySelectorAll('.variant-row').length<=1){
+          toast('Нужен хотя бы один вариант');
+          return;
+        }
+        btn.closest('.variant-row').remove();
+      };
+    });
+  }
+
+  bindRemove();
+
+  $('#addVariant').onclick=()=>{
+    $('#variantRows').insertAdjacentHTML('beforeend',variantRow());
+    bindRemove();
+  };
+
+  $('#uploadP').onclick=async()=>{
+    try{
+      const f=$('#pFile').files[0];
+      if(!f) throw new Error('Выбери файл');
+
+      const fd=new FormData();
+      fd.append('file',f);
+
+      const h=authHeaders();
+      delete h['Content-Type'];
+
+      const r=await fetch('/api/admin/upload',{
+        method:'POST',
+        headers:h,
+        body:fd
+      });
+
+      if(!r.ok){
+        throw new Error((await r.json()).detail||'Ошибка загрузки');
+      }
+
+      const out=await r.json();
+      $('#pImg').value=out.url;
+      toast('Фото загружено');
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+
+  $('#saveP').onclick=async()=>{
+    try{
+      const name=$('#pName').value.trim();
+      if(!name) throw new Error('Укажи название');
+
+      const category_id=$('#pCat').value
+        ? Number($('#pCat').value)
+        : null;
+
+      const description=$('#pDesc').value.trim();
+      const image_url=$('#pImg').value.trim();
+
+      const rows=[...d.querySelectorAll('.variant-row')];
+      const keep=[];
+
+      for(const row of rows){
+        const amount=Number(row.querySelector('.vAmount').value);
+        const unit=row.querySelector('.vUnit').value;
+        const price=Number(row.querySelector('.vPrice').value);
+
+        if(!amount || amount<=0){
+          throw new Error('Укажи количество');
+        }
+
+        const id=Number(row.dataset.id||0)||null;
+
+        const old=id
+          ? state.boot.products.find(x=>Number(x.id)===id)
+          : null;
+
+        const marker=`[[VARIANT:${group}|${amount}|${unit}]]`;
+
+        const body={
+          category_id,
+          name,
+          description:(description?description+'\n\n':'')+marker,
+          price,
+
+          stock:Number(old?.stock)>0
+            ? Number(old.stock)
+            : 999999,
+
+          image_url,
+
+          weight_g:
+            unit==='g' ? Math.round(amount)
+            : unit==='ml' ? Math.round(amount)
+            : Number(old?.weight_g||200),
+
+          length_cm:Number(old?.length_cm||15),
+          width_cm:Number(old?.width_cm||20),
+          height_cm:Number(old?.height_cm||10),
+
+          active:true
+        };
+
+        if(id){
+          await api(`/api/admin/products/${id}`,{
+            method:'PUT',
+            body:JSON.stringify(body)
+          });
+
+          keep.push(id);
+        }else{
+          await api('/api/admin/products',{
+            method:'POST',
+            body:JSON.stringify(body)
+          });
+        }
+      }
+
+      for(const old of items){
+        if(old.id && !keep.includes(Number(old.id))){
+          await api(`/api/admin/products/${old.id}`,{
+            method:'DELETE'
+          });
+        }
+      }
+
+      d.remove();
+      await boot();
+      toast('Сохранено');
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+
+  if(p.id){
+    $('#delP').onclick=async()=>{
+      if(!confirm('Удалить товар?')) return;
+
+      for(const item of items){
+        await api(`/api/admin/products/${item.id}`,{
+          method:'DELETE'
+        });
+      }
+
+      d.remove();
+      await boot();
+    };
+  }
+}
+
+
+
+/* LAVKA_ROOT_CATEGORY_EDITOR_V1 */
+function rootCategoryModal(c){
+  if(!c || !c.id) return;
+
+  const d = modal(`
+    <div class="section-head">
+      <h2>Название главной категории</h2>
+      <button class="btn secondary" id="closeRootCategory">Закрыть</button>
+    </div>
+
+    <div class="form">
+      <div class="field">
+        <label>Название</label>
+        <input id="rootCategoryName" value="${esc(c.name||'')}">
+      </div>
+
+      <div class="notice">
+        Меняется только название. Подкатегории и товары останутся на месте.
+      </div>
+
+      <button class="btn gold" id="saveRootCategory">Сохранить</button>
+    </div>
+  `);
+
+  $('#closeRootCategory').onclick = () => d.remove();
+
+  $('#saveRootCategory').onclick = async () => {
+    try{
+      const name = $('#rootCategoryName').value.trim();
+      if(!name) throw new Error('Введите название');
+
+      await api(`/api/admin/categories/${c.id}`, {
+        method:'PUT',
+        body:JSON.stringify({
+          name,
+          slug:c.slug,
+          sort_order:Number(c.sort_order || 0),
+          active:c.active !== false
+        })
+      });
+
+      d.remove();
+      await boot();
+      toast('Название сохранено');
+    }catch(e){
+      toast(e.message);
+    }
+  };
+}
+
+function categoryModal(c={}){
+
+  const currentParent = c.id ? categoryParent(c) : null;
+
+  const possibleParents = sortedCategories().filter(x => {
+    if(!c.id) return true;
+
+    if(Number(x.id) === Number(c.id)) return false;
+
+    if(
+      c.slug &&
+      String(x.slug || '').startsWith(String(c.slug) + '--')
+    ){
+      return false;
+    }
+
+    return true;
+  });
+
+  const parentOptions = possibleParents.map(x => `
+    <option
+      value="${x.id}"
+      ${currentParent && Number(currentParent.id)===Number(x.id)?'selected':''}>
+      ${'↳ '.repeat(Math.max(0,categoryDepth(x)-1))}${esc(x.name)}
+    </option>
+  `).join('');
+
+  const d = modal(`
+    <div class="section-head">
+      <h2>${c.id?'Категория':'Новая категория'}</h2>
+      <button class="btn secondary" id="closeM">Закрыть</button>
+    </div>
+
+    <div class="form">
+
+      <div class="field">
+        <label>Название</label>
+        <input
+          id="cName"
+          value="${esc(c.name||'')}"
+          placeholder="Например: Сома">
+      </div>
+
+      <div class="field">
+        <label>Родительская категория</label>
+
+        <select id="cParent">
+          <option value="">Главная категория</option>
+          ${parentOptions}
+        </select>
+
+        <div class="muted" style="margin-top:6px">
+          Если оставить пустым — категория будет главной.
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Slug</label>
+        <input
+          id="cSlug"
+          value="${esc(categoryBaseSlug(c))}"
+          placeholder="создаётся автоматически">
+      </div>
+
+      <div class="field">
+        <label>Порядок</label>
+        <input
+          id="cSort"
+          type="number"
+          value="${c.sort_order??0}">
+      </div>
+
+      <button class="btn gold" id="saveC">
+        Сохранить
+      </button>
+
+    </div>
+  `);
+
+  $('#closeM').onclick = () => d.remove();
+
+  $('#saveC').onclick = async () => {
+    try{
+
+      const name = $('#cName').value.trim();
+
+      if(!name){
+        throw new Error('Укажи название категории');
+      }
+
+      let baseSlug = $('#cSlug').value.trim();
+
+      baseSlug = baseSlug
+        .replace(/--+/g,'-')
+        .replace(/^-+|-+$/g,'');
+
+      if(!baseSlug){
+        throw new Error('Slug не создан');
+      }
+
+      const parentId = $('#cParent').value
+        ? Number($('#cParent').value)
+        : null;
+
+      const parent = parentId
+        ? state.boot.categories.find(x =>
+            Number(x.id) === Number(parentId)
+          )
+        : null;
+
+      const fullSlug = parent
+        ? `${parent.slug}--${baseSlug}`
+        : baseSlug;
+
+      const oldSlug = String(c.slug || '');
+
+      const body = {
+        name,
+        slug: fullSlug,
+        sort_order: Number($('#cSort').value || 0),
+        active: true
+      };
+
+      await api(
+        c.id
+          ? `/api/admin/categories/${c.id}`
+          : '/api/admin/categories',
+        {
+          method: c.id ? 'PUT' : 'POST',
+          body: JSON.stringify(body)
+        }
+      );
+
+      /*
+        Если поменяли slug родительской категории,
+        автоматически обновляем пути её подразделов.
+      */
+      if(c.id && oldSlug && oldSlug !== fullSlug){
+
+        const descendants = state.boot.categories.filter(x =>
+          Number(x.id) !== Number(c.id) &&
+          String(x.slug || '').startsWith(oldSlug + '--')
+        );
+
+        for(const child of descendants){
+
+          const childSlug =
+            fullSlug +
+            String(child.slug).slice(oldSlug.length);
+
+          await api(
+            `/api/admin/categories/${child.id}`,
+            {
+              method:'PUT',
+              body:JSON.stringify({
+                name: child.name,
+                slug: childSlug,
+                sort_order: Number(child.sort_order || 0),
+                active: child.active !== false
+              })
+            }
+          );
+        }
+      }
+
+      d.remove();
+      await boot();
+      toast('Категория сохранена');
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+}
+
+async function showAdminOrders(){ try{const rows=await api('/api/admin/orders'); modal(`<div class="section-head"><h2>Заказы</h2><span class="badge">${rows.length}</span></div><div class="admin-list">${rows.map(o=>`<div class="admin-row"><div><strong>№${o.id} · ${rub(o.total)}</strong><div class="muted">${esc(o.customer_name||'')} · ${esc(o.phone||'')}<br>${esc(o.city_name||'')} ${esc(o.address||'')}</div></div><span class="badge">${esc(o.status)}</span></div>`).join('')||'<div class="empty">Нет заказов</div>'}</div>`);}catch(e){toast(e.message)} }
+
+document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render()});
+updateBadge(); boot();
+
+
+/* LAVKA INFO PAGE */
+
+const INFO_DEFAULTS = {
+  info_seller: 'ИП Шилова Лилия Азатовна.\nИНН: 026509411367.\nОГРНИП: 326028000090111.\n\nСайт: lavkashamana.ru\nСвязь по вопросам заказов: Telegram @Shamanchik007.',
+  info_about:
+    'Лавка Шамана - пространство природных товаров, чаёв, трав, масел, мёда, аксессуаров и будущего авторского мерча. Здесь мы собираем то, что помогает быть ближе к природе и к себе.',
+
+  info_delivery:
+    'Доступные варианты доставки и их стоимость отображаются при оформлении заказа. После отправки заказа покупатель получает информацию для отслеживания.',
+
+  info_payment:
+    'Доступные способы оплаты указываются при оформлении заказа. Используйте только способы оплаты, указанные непосредственно внутри Лавки Шамана.',
+
+  info_referral: 'Приглашайте друзей в Лавку Шамана по своей персональной ссылке. За каждого приглашённого пользователя, совершившего хотя бы одну оплаченную покупку, ваша ставка увеличивается на 0,5%. Максимальная ставка - 10%. Начисление идёт с каждой оплаченной покупки приглашённого. В расчёт входит только стоимость товаров после использования скидок и внутреннего баланса. Стоимость доставки СДЭК в реферальную базу не входит.',
+
+  info_returns:
+    'Если заказ ещё не передан в доставку, свяжитесь с поддержкой как можно быстрее. Возможность возврата зависит от категории товара и состояния заказа.',
+
+  info_support:
+    'Если возник вопрос по товару, заказу или доставке - напишите нам в Telegram. Мы постараемся помочь и разобраться по существу.',
+
+  info_documents:
+    'Здесь будут размещены публичная оферта, политика обработки персональных данных, согласие на обработку данных и информация о продавце.',
+
+  info_privacy: 'Настоящая Политика определяет порядок обработки и защиты персональных данных пользователей интернет-магазина "Лавка Шамана", сайта lavkashamana.ru и Telegram Mini App.\n\nОператор персональных данных: ИП Шилова Лилия Азатовна.\n\nПерсональные данные могут использоваться для работы Mini App, оформления и исполнения заказов, проведения оплаты, организации доставки, связи с покупателем и выполнения требований законодательства.\n\nДля исполнения заказа необходимые данные могут передаваться СДЭК, ЮKassa, техническим сервисам и государственным органам в случаях, предусмотренных законодательством.\n\nПерсональные данные не продаются и не передаются посторонним лицам для целей, не связанных с работой "Лавки Шамана".\n\nПо вопросам обработки персональных данных можно обратиться в Telegram: @Shamanchik007.',
+
+  info_consent: 'Я добровольно даю согласие ИП Шиловой Лилии Азатовне на обработку моих персональных данных, которые я предоставляю при использовании "Лавки Шамана", оформлении и оплате заказа.\n\nСогласие распространяется на имя, контактные данные, Telegram ID, сведения о заказе, адрес или выбранный пункт выдачи и другие данные, необходимые для исполнения заказа.\n\nЯ согласен с передачей необходимых данных СДЭК для доставки и ЮKassa для проведения оплаты.\n\nЯ подтверждаю, что ознакомлен с Политикой обработки персональных данных "Лавки Шамана".\n\nСогласие действует до достижения целей обработки либо до его отзыва в случаях, предусмотренных законодательством.',
+
+  info_offer: 'Публичная оферта интернет-магазина "Лавка Шамана".\n\nПродавец: ИП Шилова Лилия Азатовна.\nИНН: 026509411367.\nОГРНИП: 326028000090111.\n\nНастоящий документ определяет условия дистанционной продажи товаров через интернет-магазин "Лавка Шамана", сайт lavkashamana.ru и Telegram Mini App.\n\nПокупатель самостоятельно выбирает товар, знакомится с его описанием, стоимостью и условиями приобретения.\n\nОплата заказов осуществляется через ЮKassa.\n\nДоставка осуществляется службой СДЭК до пункта выдачи либо курьером. Стоимость доставки оплачивается покупателем и рассчитывается при оформлении заказа.\n\nУсловия отмены и возврата указаны в отдельном разделе "Возврат и отмена заказа".\n\nОбработка персональных данных осуществляется в соответствии с Политикой обработки персональных данных и Согласием на обработку персональных данных.\n\nПо вопросам заказов и работы магазина: Telegram @Shamanchik007.\n\nАктуальная версия настоящей оферты размещается в разделе "Информация" "Лавки Шамана".'
+};
+
+function renderInfoPage(data = {}) {
+  const v = key => esc(data[key] || INFO_DEFAULTS[key] || '');
+
+  document.querySelectorAll('.bottom-nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === 'info');
+  });
+
+  document.getElementById('content').innerHTML = `
+    <section class="section info-page">
+
+      <div class="info-intro">
+        <h2>Информация</h2>
+        <p>Всё основное о Лавке Шамана, заказах, доставке и поддержке.</p>
+      </div>
+
+      <details class="info-item" open>
+        <summary>О Лавке Шамана</summary>
+        <div class="info-text">${v('info_about')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Доставка</summary>
+        <div class="info-text">${v('info_delivery')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Оплата</summary>
+        <div class="info-text">${v('info_payment')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Реферальная программа</summary>
+        <div class="info-text">${v("info_referral")}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Возврат и отмена</summary>
+        <div class="info-text">${v('info_returns')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Поддержка</summary>
+        <div class="info-text">${v('info_support')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Документы</summary>
+        <div class="info-text">${v('info_documents')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Политика обработки персональных данных</summary>
+        <div class="info-text">${v('info_privacy')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Согласие на обработку персональных данных</summary>
+        <div class="info-text">${v('info_consent')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Публичная оферта</summary>
+        <div class="info-text">${v('info_offer')}</div>
+      </details>
+
+      <details class="info-item">
+        <summary>Информация о продавце</summary>
+        <div class="info-text">${v('info_seller')}</div>
+      </details>
+
+    </section>
+  `;
+}
+
+async function openInfoEditor() {
+  try {
+    const settings = await api('/api/admin/settings');
+    const val = key => settings[key] || INFO_DEFAULTS[key] || '';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal';
+
+    overlay.innerHTML = `
+      <div class="modal-card">
+
+        <div class="section-head">
+          <h2>Информация</h2>
+          <button class="btn secondary" id="closeInfoEditor">Закрыть</button>
+        </div>
+
+        <div class="form">
+
+          <div class="field">
+            <label>О Лавке Шамана</label>
+            <textarea data-info="info_about">${esc(val('info_about'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Доставка</label>
+            <textarea data-info="info_delivery">${esc(val('info_delivery'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Оплата</label>
+            <textarea data-info="info_payment">${esc(val('info_payment'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Реферальная программа</label>
+            <textarea data-info="info_referral" style="min-height:180px">${esc(val("info_referral"))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Возврат и отмена</label>
+            <textarea data-info="info_returns">${esc(val('info_returns'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Поддержка</label>
+            <textarea data-info="info_support">${esc(val('info_support'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Документы</label>
+            <textarea data-info="info_documents">${esc(val('info_documents'))}</textarea>
+          </div>
+
+          
+          <div class="field">
+            <label>Политика обработки персональных данных</label>
+            <textarea data-info="info_privacy" style="min-height:220px">${esc(val('info_privacy'))}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Согласие на обработку персональных данных</label>
+            <textarea data-info="info_consent" style="min-height:220px">${esc(val('info_consent'))}</textarea>
+          </div>
+
+
+          <div class="field">
+            <label>Публичная оферта</label>
+            <textarea data-info="info_offer" style="min-height:260px">${esc(val('info_offer'))}</textarea>
+          </div>
+
+<div class="field">
+            <label>Информация о продавце</label>
+            <textarea data-info="info_seller" style="min-height:180px">${esc(val('info_seller'))}</textarea>
+          </div>
+
+          <button class="btn" id="saveInfoEditor">
+            Сохранить изменения
+          </button>
+
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#closeInfoEditor').onclick = () => overlay.remove();
+
+    overlay.onclick = e => {
+      if (e.target === overlay) overlay.remove();
+    };
+
+    overlay.querySelector('#saveInfoEditor').onclick = async () => {
+      try {
+        const values = {};
+
+        overlay.querySelectorAll('[data-info]').forEach(el => {
+          values[el.dataset.info] = el.value.trim();
+        });
+
+        await api('/api/admin/settings', {
+          method: 'PATCH',
+          body: JSON.stringify({values})
+        });
+
+        overlay.remove();
+        toast('Информация сохранена');
+      } catch (e) {
+        toast(e.message);
+      }
+    };
+
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+const __lavkaRenderWithInfo = render;
+
+render = function() {
+
+  if (state.tab === 'info') {
+    renderInfoPage();
+
+    api('/api/info')
+      .then(data => {
+        if (state.tab === 'info') renderInfoPage(data);
+      })
+      .catch(() => {});
+
+    return;
+  }
+
+  const result = __lavkaRenderWithInfo();
+
+  if (state.tab === 'admin') {
+    setTimeout(() => {
+      const content = document.getElementById('content');
+
+      if (content && !document.getElementById('infoAdminPanel')) {
+        const panel = document.createElement('div');
+
+        panel.id = 'infoAdminPanel';
+        panel.className = 'panel section';
+
+        panel.innerHTML = `
+          <div class="section-head">
+            <h2>Информация</h2>
+          </div>
+
+          <div class="muted" style="margin-bottom:12px">
+            Тексты раздела "Информация" магазина.
+          </div>
+
+          <button class="btn" id="editInfoBtn">
+            Редактировать информацию
+          </button>
+        `;
+
+        content.appendChild(panel);
+
+        panel.querySelector('#editInfoBtn').onclick = openInfoEditor;
+      }
+    }, 0);
+  }
+
+  return result;
+};
+
+
+/* LAVKA PRIVACY GATE */
+function showLavkaPrivacyGate() {
+  if (localStorage.getItem('lavka_privacy_consent_v2')) return;
+
+  const gate = document.createElement('div');
+  gate.id = 'lavkaPrivacyGate';
+  gate.innerHTML = `
+    <div class="privacy-gate-card">
+
+      <div class="privacy-gate-symbol">🌿</div>
+
+      <h2>Добро пожаловать в "Лавку Шамана"</h2>
+
+      <p>
+        Для работы магазина необходимо ваше согласие
+        на обработку персональных данных.
+      </p>
+
+      <details class="privacy-details">
+        <summary>Как используются данные</summary>
+        <div>
+          Данные используются для работы Mini App, оформления заказа,
+          оплаты, доставки и связи с покупателем.
+          Необходимые данные могут передаваться СДЭК для доставки
+          и ЮKassa для оплаты.
+        </div>
+      </details>
+
+      <label class="privacy-check">
+        <input type="checkbox" id="privacyConsentCheck">
+        <span>
+          Я даю согласие на обработку персональных данных
+          и ознакомлен с Политикой обработки персональных данных.
+        </span>
+      </label>
+
+      <label class="privacy-check">
+        <input type="checkbox" id="age18Check">
+        <span>Мне исполнилось 18 лет.</span>
+      </label>
+
+      <button class="btn" id="privacyContinueBtn" disabled>
+        Продолжить
+      </button>
+
+      <button class="privacy-link" id="privacyOpenInfo">
+        Открыть документы
+      </button>
+
+    </div>
+  `;
+
+  document.body.appendChild(gate);
+
+  const check = gate.querySelector('#privacyConsentCheck');
+  const btn = gate.querySelector('#privacyContinueBtn');
+  /* LAVKA_18_GATE_V2 */
+  const ageCheck = gate.querySelector('#age18Check');
+  const syncConsent = () => { btn.disabled = !(check.checked && ageCheck.checked); };
+  check.addEventListener('change', () => setTimeout(syncConsent, 0));
+  ageCheck.addEventListener('change', syncConsent);
+  btn.addEventListener('click', (e) => { if (!(check.checked && ageCheck.checked)) { e.preventDefault(); e.stopImmediatePropagation(); syncConsent(); } }, true);
+  syncConsent();
+
+  check.addEventListener('change', () => {
+    btn.disabled = !check.checked;
+  });
+
+  btn.addEventListener('click', () => {
+    if (!check.checked) return;
+
+    localStorage.setItem(
+      'lavka_privacy_consent_v2',
+      JSON.stringify({
+        accepted: true,
+        date: new Date().toISOString(),
+        version: 1
+      })
+    );
+
+    gate.remove();
+  });
+
+  gate.querySelector('#privacyOpenInfo').addEventListener('click', () => {
+    state.tab = 'info';
+    render();
+    gate.remove();
+  });
+}
+
+setTimeout(showLavkaPrivacyGate, 350);
+
+/* LAVKA_AUTO_CATEGORY_SLUG_V1 */
+(() => {
+  const ru = {
+    а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',
+    и:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',
+    с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'c',ч:'ch',ш:'sh',
+    щ:'sch',ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya'
+  };
+
+  function categorySlug(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .split('')
+      .map(ch => ru[ch] !== undefined ? ru[ch] : ch)
+      .join('')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  function findSlug(scope) {
+    return scope.querySelector(
+      'input[name="slug"], input[id="slug"], input[id*="slug"], input[name*="slug"]'
+    );
+  }
+
+  function updateSlugFromInput(input) {
+    if (!input || input.tagName !== 'INPUT') return;
+
+    const scope =
+      input.closest('form') ||
+      input.closest('.modal') ||
+      input.closest('.dialog') ||
+      input.closest('.sheet') ||
+      input.parentElement?.parentElement ||
+      document;
+
+    const slugInput = findSlug(scope);
+    if (!slugInput || slugInput === input) return;
+
+    const key = ((input.name || '') + ' ' + (input.id || '')).toLowerCase();
+    const placeholder = (input.placeholder || '').toLowerCase();
+
+    const looksLikeName =
+      key === 'name ' ||
+      key.trim() === 'name' ||
+      key.trim() === 'title' ||
+      key.includes('category') ||
+      key.includes('name') ||
+      placeholder.includes('название') ||
+      placeholder.includes('категор');
+
+    if (!looksLikeName) return;
+
+    const slug = categorySlug(input.value);
+
+    if (slugInput.value !== slug) {
+      slugInput.value = slug;
+      slugInput.dispatchEvent(new Event('input', { bubbles: true }));
+      slugInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  document.addEventListener('input', e => {
+    updateSlugFromInput(e.target);
+  }, true);
+
+  /*
+    Дополнительная страховка:
+    перед отправкой категории slug добавляется в JSON автоматически,
+    даже если поле формы по какой-то причине не заполнилось.
+  */
+  const originalFetch = window.fetch;
+
+  window.fetch = function(input, init) {
+    try {
+      const url =
+        typeof input === 'string'
+          ? input
+          : (input && input.url ? input.url : '');
+
+      const opts = init ? { ...init } : {};
+      const method = String(
+        opts.method ||
+        (input && input.method) ||
+        'GET'
+      ).toUpperCase();
+
+      if (
+        /categor/i.test(url) &&
+        ['POST', 'PUT', 'PATCH'].includes(method) &&
+        typeof opts.body === 'string'
+      ) {
+        try {
+          const data = JSON.parse(opts.body);
+
+          const name =
+            data.name ||
+            data.title ||
+            data.category_name;
+
+          if (name && (!data.slug || !String(data.slug).trim())) {
+            data.slug = categorySlug(name);
+            opts.body = JSON.stringify(data);
+          }
+        } catch (_) {}
+      }
+
+      return originalFetch.call(this, input, opts);
+    } catch (_) {
+      return originalFetch.call(this, input, init);
+    }
+  };
+})();
+
+
+/* LAVKA_FORCE_VARIANTS_V4 */
+
+function lv4meta(p){
+  const raw=String(p?.description||'');
+  const m=raw.match(/\[\[LV4:([^|\]]+)\|([0-9.]+)\|(g|ml|pcs)\]\]/);
+
+  if(!m){
+    return {
+      group:null,
+      amount:p?.weight_g||'',
+      unit:'g',
+      description:raw
+    };
+  }
+
+  return {
+    group:m[1],
+    amount:Number(m[2]),
+    unit:m[3],
+    description:raw.replace(m[0],'').trim()
+  };
+}
+
+function lv4group(){
+  return 'vg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+}
+
+productModal = function(p={}){
+
+  const pm=p.id?lv4meta(p):null;
+  const group=pm?.group||lv4group();
+
+  let existing=[];
+
+  if(p.id && pm?.group){
+    existing=state.boot.products.filter(x=>lv4meta(x).group===group);
+  }else if(p.id){
+    existing=[p];
+  }
+
+  const first=existing[0]||p||{};
+  const description=p.id?lv4meta(first).description:'';
+
+  function row(item={}){
+    const m=item.id
+      ? lv4meta(item)
+      : {amount:'',unit:'g'};
+
+    return `
+      <div class="panel lv4row" data-id="${item.id||''}"
+           style="padding:12px;margin-bottom:12px">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+          <div class="field">
+            <label>Количество</label>
+            <input class="lv4amount"
+                   type="number"
+                   min="0.01"
+                   step="0.01"
+                   value="${m.amount??''}"
+                   placeholder="330">
+          </div>
+
+          <div class="field">
+            <label>Единица</label>
+            <select class="lv4unit">
+              <option value="g" ${m.unit==='g'?'selected':''}>граммы</option>
+              <option value="ml" ${m.unit==='ml'?'selected':''}>миллилитры</option>
+              <option value="pcs" ${m.unit==='pcs'?'selected':''}>штуки</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="field">
+          <label>Цена, ₽</label>
+          <input class="lv4price"
+                 type="number"
+                 min="0"
+                 value="${item.price??0}">
+        </div>
+
+        <button type="button"
+                class="btn secondary lv4remove">
+          Удалить вариант
+        </button>
+
+      </div>
+    `;
+  }
+
+  const cats =
+    typeof sortedCategories==='function'
+      ? sortedCategories()
+      : state.boot.categories;
+
+  const d=modal(`
+
+    <div class="section-head">
+      <h2>${p.id?'Редактировать товар':'Новый товар'}</h2>
+      <button class="btn secondary" id="closeM">Закрыть</button>
+    </div>
+
+    <div class="form">
+
+      <div class="field">
+        <label>Название</label>
+        <input id="pName" value="${esc(first.name||'')}">
+      </div>
+
+      <div class="field">
+        <label>Категория</label>
+        <select id="pCat">
+          <option value="">Без категории</option>
+
+          ${cats.map(c=>`
+            <option value="${c.id}"
+              ${first.category_id==c.id?'selected':''}>
+              ${
+                typeof categoryDepth==='function'
+                  ? '↳ '.repeat(Math.max(0,categoryDepth(c)-1))
+                  : ''
+              }${esc(c.name)}
+            </option>
+          `).join('')}
+
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Описание</label>
+        <textarea id="pDesc">${esc(description)}</textarea>
+      </div>
+
+      <div class="field">
+        <label>Фото</label>
+
+        <input id="pImg"
+               value="${esc(first.image_url||'')}"
+               placeholder="Ссылка или загруженный файл">
+
+        <input id="pFile"
+               type="file"
+               accept="image/jpeg,image/png,image/webp">
+
+        <button class="btn secondary"
+                id="uploadP"
+                type="button">
+          Загрузить фото
+        </button>
+      </div>
+
+      <div class="section-head" style="margin-top:12px">
+        <h3>Варианты товара</h3>
+
+        <button class="btn secondary"
+                id="addVariant"
+                type="button">
+          + Вариант
+        </button>
+      </div>
+
+      <div id="lv4rows">
+        ${existing.length ? existing.map(row).join('') : row()}
+      </div>
+
+      <button class="btn gold" id="saveP">
+        Сохранить
+      </button>
+
+      ${p.id
+        ? '<button class="btn danger" id="delP">Удалить товар</button>'
+        : ''
+      }
+
+    </div>
+  `);
+
+  $('#closeM').onclick=()=>d.remove();
+
+  function bindRemove(){
+    d.querySelectorAll('.lv4remove').forEach(btn=>{
+      btn.onclick=()=>{
+        if(d.querySelectorAll('.lv4row').length===1){
+          toast('Нужен хотя бы один вариант');
+          return;
+        }
+
+        btn.closest('.lv4row').remove();
+      };
+    });
+  }
+
+  bindRemove();
+
+  $('#addVariant').onclick=()=>{
+    $('#lv4rows').insertAdjacentHTML('beforeend',row());
+    bindRemove();
+  };
+
+  $('#uploadP').onclick=async()=>{
+    try{
+      const f=$('#pFile').files[0];
+
+      if(!f) throw new Error('Выбери файл');
+
+      const fd=new FormData();
+      fd.append('file',f);
+
+      const h=authHeaders();
+      delete h['Content-Type'];
+
+      const r=await fetch('/api/admin/upload',{
+        method:'POST',
+        headers:h,
+        body:fd
+      });
+
+      if(!r.ok){
+        throw new Error((await r.json()).detail||'Ошибка загрузки');
+      }
+
+      const out=await r.json();
+      $('#pImg').value=out.url;
+
+      toast('Фото загружено');
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+
+  $('#saveP').onclick=async()=>{
+    try{
+
+      const name=$('#pName').value.trim();
+
+      if(!name){
+        throw new Error('Укажи название товара');
+      }
+
+      const category_id=$('#pCat').value
+        ? Number($('#pCat').value)
+        : null;
+
+      const clean=$('#pDesc').value.trim();
+      const image_url=$('#pImg').value.trim();
+
+      const rows=[...d.querySelectorAll('.lv4row')];
+      const kept=[];
+
+      for(const r of rows){
+
+        const amount=Number(
+          r.querySelector('.lv4amount').value
+        );
+
+        const unit=
+          r.querySelector('.lv4unit').value;
+
+        const price=Number(
+          r.querySelector('.lv4price').value
+        );
+
+        if(!amount || amount<=0){
+          throw new Error('Укажи количество');
+        }
+
+        const id=Number(r.dataset.id||0)||null;
+
+        const old=id
+          ? state.boot.products.find(x=>Number(x.id)===id)
+          : null;
+
+        const marker=`[[LV4:${group}|${amount}|${unit}]]`;
+
+        const body={
+          category_id,
+          name,
+          description:(clean?clean+'\n\n':'')+marker,
+          price,
+
+          stock:Number(old?.stock)>0
+            ? Number(old.stock)
+            : 999999,
+
+          image_url,
+
+          weight_g:
+            unit==='g'
+              ? Math.max(1,Math.round(amount))
+              : unit==='ml'
+                ? Math.max(1,Math.round(amount))
+                : Number(old?.weight_g||200),
+
+          length_cm:Number(old?.length_cm||15),
+          width_cm:Number(old?.width_cm||20),
+          height_cm:Number(old?.height_cm||10),
+
+          active:true
+        };
+
+        if(id){
+
+          await api(`/api/admin/products/${id}`,{
+            method:'PUT',
+            body:JSON.stringify(body)
+          });
+
+          kept.push(id);
+
+        }else{
+
+          await api('/api/admin/products',{
+            method:'POST',
+            body:JSON.stringify(body)
+          });
+        }
+      }
+
+      for(const old of existing){
+        if(old.id && !kept.includes(Number(old.id))){
+          await api(`/api/admin/products/${old.id}`,{
+            method:'DELETE'
+          });
+        }
+      }
+
+      d.remove();
+      await boot();
+
+      toast('Сохранено');
+
+    }catch(e){
+      toast(e.message);
+    }
+  };
+
+  if(p.id){
+    $('#delP').onclick=async()=>{
+
+      if(!confirm('Удалить товар?')) return;
+
+      for(const item of existing){
+        if(item.id){
+          await api(`/api/admin/products/${item.id}`,{
+            method:'DELETE'
+          });
+        }
+      }
+
+      d.remove();
+      await boot();
+    };
+  }
+};
+
+
+/* LAVKA_DELETE_PRODUCT_V1 */
+
+const lavkaBindBeforeDeleteV1 = bind;
+
+bind = function(){
+
+  lavkaBindBeforeDeleteV1();
+
+  document.querySelectorAll('[data-edit-product]').forEach(editBtn => {
+
+    const row = editBtn.closest('.admin-row');
+    if(!row) return;
+
+    const actions =
+      editBtn.closest('.admin-actions') ||
+      row;
+
+    if(actions.querySelector('.lavka-delete-product')){
+      return;
+    }
+
+    const del = document.createElement('button');
+
+    del.className = 'btn danger lavka-delete-product';
+    del.textContent = 'Удалить';
+    del.type = 'button';
+
+    del.onclick = async () => {
+
+      const id = Number(editBtn.dataset.editProduct);
+
+      const product = (state.boot.products || []).find(
+        p => Number(p.id) === id
+      );
+
+      if(!product){
+        toast('Товар не найден');
+        return;
+      }
+
+      let ids = [id];
+
+      /*
+        Если это товар с вариантами,
+        удаляем все его варианты вместе.
+      */
+      if(typeof lv4meta === 'function'){
+
+        const meta = lv4meta(product);
+
+        if(meta.group){
+
+          ids = (state.boot.products || [])
+            .filter(p => lv4meta(p).group === meta.group)
+            .map(p => Number(p.id));
+        }
+      }
+
+      if(!confirm(
+        ids.length > 1
+          ? `Удалить товар полностью и все его варианты (${ids.length})?`
+          : `Удалить товар "${product.name}"?`
+      )){
+        return;
+      }
+
+      try{
+
+        for(const productId of ids){
+
+          await api(
+            `/api/admin/products/${productId}`,
+            {method:'DELETE'}
+          );
+        }
+
+        await boot();
+
+        toast('Товар удалён');
+
+      }catch(e){
+
+        toast(e.message);
+      }
+    };
+
+    actions.appendChild(del);
+  });
+};
+

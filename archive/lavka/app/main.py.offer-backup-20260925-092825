@@ -1,0 +1,297 @@
+from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from .config import settings
+from .db import Base, engine, get_db
+from .models import User, Category, Product, Order, OrderItem, ReferralCredit, Setting
+from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, SettingsPatch
+from .services.telegram import get_current_user, require_admin
+from .services.referrals import active_referrals_count, referral_rate, credit_referrer_for_paid_order
+from .services.cdek import cdek
+from .services.payments import get_gateway
+
+Base.metadata.create_all(engine)
+app = FastAPI(title=settings.app_name)
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def money(v):
+    return float(Decimal(v or 0))
+
+def user_json(db, u: User):
+    active = active_referrals_count(db, u)
+    rate = min(active, 10)
+    return {
+        'id': u.id,
+        'telegram_id': u.telegram_id,
+        'username': u.username,
+        'first_name': u.first_name,
+        'is_admin': u.is_admin,
+        'balance': money(u.balance),
+        'active_referrals': active,
+        'referral_rate': rate,
+        'referral_link': f'https://t.me/{settings.bot_username}?start=ref_{u.telegram_id}',
+    }
+
+def category_json(c):
+    return {'id': c.id, 'name': c.name, 'slug': c.slug, 'sort_order': c.sort_order, 'active': c.active}
+
+def product_json(p):
+    return {
+        'id': p.id, 'category_id': p.category_id, 'name': p.name, 'description': p.description,
+        'price': money(p.price), 'stock': p.stock, 'image_url': p.image_url,
+        'weight_g': p.weight_g, 'length_cm': p.length_cm, 'width_cm': p.width_cm,
+        'height_cm': p.height_cm, 'active': p.active,
+    }
+
+@app.get('/api/bootstrap')
+def bootstrap(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    cats = db.query(Category).filter(Category.active.is_(True)).order_by(Category.sort_order, Category.name).all()
+    products = db.query(Product).filter(Product.active.is_(True)).order_by(Product.id.desc()).all()
+    orders = db.query(Order).filter(Order.user_id == user.id).order_by(Order.id.desc()).limit(20).all()
+    return {
+        'app_name': settings.app_name,
+        'me': user_json(db, user),
+        'categories': [category_json(c) for c in cats],
+        'products': [product_json(p) for p in products],
+        'orders': [{'id': o.id, 'status': o.status, 'total': money(o.total), 'created_at': o.created_at.isoformat()} for o in orders],
+        'integrations': {'cdek': cdek.configured, 'payment_provider': settings.payment_provider},
+    }
+
+@app.get('/api/referrals')
+def referrals(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    referred = db.query(User).filter(User.referrer_id == user.id).order_by(User.created_at.desc()).all()
+    rows = []
+    for r in referred:
+        paid_count = db.query(func.count(Order.id)).filter(Order.user_id == r.id, Order.status == 'paid').scalar() or 0
+        rows.append({'telegram_id': r.telegram_id, 'username': r.username, 'first_name': r.first_name, 'bought': paid_count > 0, 'paid_orders': paid_count})
+    credits = db.query(ReferralCredit).filter(ReferralCredit.referrer_id == user.id).order_by(ReferralCredit.id.desc()).limit(50).all()
+    return {'active_count': active_referrals_count(db, user), 'rate': referral_rate(db, user), 'people': rows, 'credits': [{'order_id': c.source_order_id, 'rate': c.rate_percent, 'base': money(c.base_amount), 'amount': money(c.amount), 'created_at': c.created_at.isoformat()} for c in credits]}
+
+@app.get('/api/cdek/cities')
+async def cdek_cities(q: str, user: User = Depends(get_current_user)):
+    return await cdek.cities(q)
+
+@app.get('/api/cdek/pvz')
+async def cdek_pvz(city_code: int, user: User = Depends(get_current_user)):
+    return await cdek.delivery_points(city_code)
+
+
+def cart_products(db: Session, items):
+    ids = [i.product_id for i in items]
+    products = {p.id: p for p in db.query(Product).filter(Product.id.in_(ids), Product.active.is_(True)).all()}
+    lines = []
+    for item in items:
+        p = products.get(item.product_id)
+        if not p:
+            raise HTTPException(400, f'Product {item.product_id} not found')
+        if item.qty > p.stock:
+            raise HTTPException(400, f'Not enough stock: {p.name}')
+        lines.append((p, item.qty))
+    return lines
+
+@app.post('/api/cdek/quote')
+async def cdek_quote(body: QuoteIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lines = cart_products(db, body.items)
+    packages = []
+    for p, qty in lines:
+        packages.append({'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm})
+    return await cdek.tariff_list(body.to_city_code, packages, body.delivery_point)
+
+@app.post('/api/orders')
+async def create_order(body: OrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lines = cart_products(db, body.items)
+    items_total = sum((Decimal(p.price) * qty for p, qty in lines), Decimal('0'))
+    requested_balance = Decimal(str(body.use_balance)).quantize(Decimal('0.01'))
+    available = Decimal(user.balance or 0)
+    balance_used = min(requested_balance, available, items_total)
+    delivery_total = Decimal(str(body.delivery_total)).quantize(Decimal('0.01'))
+    # Never trust a delivery price sent by the browser when CDEK is connected.
+    if cdek.configured:
+        if not body.city_code or not body.delivery_tariff_code:
+            raise HTTPException(400, 'Выберите город и тариф СДЭК')
+        packages = [{'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm} for p, qty in lines]
+        quote = await cdek.tariff_list(body.city_code, packages, body.delivery_point)
+        tariffs = quote.get('tariff_codes', []) if isinstance(quote, dict) else []
+        selected = next((t for t in tariffs if int(t.get('tariff_code', -1)) == int(body.delivery_tariff_code)), None)
+        if not selected:
+            raise HTTPException(400, 'Выбранный тариф СДЭК недоступен')
+        delivery_total = Decimal(str(selected.get('delivery_sum', selected.get('total_sum', 0)))).quantize(Decimal('0.01'))
+    total = items_total - balance_used + delivery_total
+    order = Order(
+        user_id=user.id, status='new', items_total=items_total, balance_used=balance_used,
+        delivery_total=delivery_total, total=total, payment_provider=settings.payment_provider,
+        delivery_type=body.delivery_type, delivery_tariff_code=body.delivery_tariff_code,
+        delivery_point=body.delivery_point, city_code=body.city_code, city_name=body.city_name,
+        address=body.address, customer_name=body.customer_name, phone=body.phone,
+    )
+    db.add(order); db.flush()
+    for p, qty in lines:
+        db.add(OrderItem(order_id=order.id, product_id=p.id, name=p.name, qty=qty, unit_price=p.price, line_total=Decimal(p.price)*qty))
+    if balance_used > 0:
+        user.balance = available - balance_used
+    db.commit(); db.refresh(order)
+
+    if total <= 0:
+        mark_paid(db, order)
+        return {'order_id': order.id, 'status': order.status, 'payment_url': None}
+
+    gateway = get_gateway()
+    payment = await gateway.create(order.id, Decimal(order.total), f'Заказ №{order.id} — {settings.app_name}')
+    order.payment_id = payment['id']
+    order.payment_url = payment.get('confirmation_url')
+    order.status = 'awaiting_payment'
+    db.commit()
+    return {'order_id': order.id, 'status': order.status, 'payment_url': order.payment_url}
+
+
+def mark_paid(db: Session, order: Order):
+    if order.status == 'paid':
+        return order
+    order.status = 'paid'; order.paid_at = datetime.utcnow()
+    items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+    for line in items:
+        if line.product_id:
+            p = db.get(Product, line.product_id)
+            if p:
+                p.stock = max(0, p.stock - line.qty)
+    db.commit(); db.refresh(order)
+    credit_referrer_for_paid_order(db, order)
+    return order
+
+@app.get('/api/payments/mock/{payment_id}/success')
+def mock_success(payment_id: str, order_id: int, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order or order.payment_id != payment_id:
+        raise HTTPException(404, 'Order not found')
+    mark_paid(db, order)
+    return RedirectResponse(url=f'/?paid={order.id}')
+
+@app.post('/api/payments/yookassa/webhook')
+async def yookassa_webhook(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    obj = payload.get('object') or {}
+    payment_id = obj.get('id')
+    if not payment_id:
+        return {'ok': True}
+    order = db.query(Order).filter(Order.payment_id == payment_id).first()
+    if not order:
+        return {'ok': True}
+    gateway = get_gateway()
+    payment = await gateway.fetch(payment_id)
+    if payment.get('status') == 'succeeded' and payment.get('paid', True):
+        mark_paid(db, order)
+    return {'ok': True}
+
+# ---------------- Admin ----------------
+@app.get('/api/admin/dashboard')
+def admin_dashboard(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    users = db.query(func.count(User.id)).scalar() or 0
+    paid_orders = db.query(func.count(Order.id)).filter(Order.status == 'paid').scalar() or 0
+    revenue = db.query(func.coalesce(func.sum(Order.total), 0)).filter(Order.status == 'paid').scalar() or 0
+    return {'users': users, 'paid_orders': paid_orders, 'revenue': money(revenue)}
+
+@app.get('/api/admin/categories')
+def admin_categories(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return [category_json(c) for c in db.query(Category).order_by(Category.sort_order, Category.id).all()]
+
+@app.post('/api/admin/categories')
+def admin_category_create(body: CategoryIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = Category(**body.model_dump()); db.add(c); db.commit(); db.refresh(c); return category_json(c)
+
+@app.put('/api/admin/categories/{category_id}')
+def admin_category_update(category_id: int, body: CategoryIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = db.get(Category, category_id)
+    if not c: raise HTTPException(404, 'Category not found')
+    for k,v in body.model_dump().items(): setattr(c,k,v)
+    db.commit(); return category_json(c)
+
+@app.delete('/api/admin/categories/{category_id}')
+def admin_category_delete(category_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    c = db.get(Category, category_id)
+    if not c: raise HTTPException(404, 'Category not found')
+    db.delete(c); db.commit(); return {'ok': True}
+
+@app.post('/api/admin/upload')
+async def admin_upload(file: UploadFile = File(...), admin: User = Depends(require_admin)):
+    allowed = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
+    if file.content_type not in allowed:
+        raise HTTPException(400, 'Разрешены JPG, PNG и WEBP')
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(400, 'Файл больше 8 МБ')
+    import uuid
+    upload_dir = ROOT / 'static' / 'uploads'
+    upload_dir.mkdir(exist_ok=True)
+    name = f'{uuid.uuid4().hex}{allowed[file.content_type]}'
+    (upload_dir / name).write_bytes(data)
+    return {'url': f'/uploads/{name}'}
+
+@app.get('/api/admin/products')
+def admin_products(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return [product_json(p) for p in db.query(Product).order_by(Product.id.desc()).all()]
+
+@app.post('/api/admin/products')
+def admin_product_create(body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = Product(**body.model_dump()); db.add(p); db.commit(); db.refresh(p); return product_json(p)
+
+@app.put('/api/admin/products/{product_id}')
+def admin_product_update(product_id: int, body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(Product, product_id)
+    if not p: raise HTTPException(404, 'Product not found')
+    for k,v in body.model_dump().items(): setattr(p,k,v)
+    db.commit(); return product_json(p)
+
+@app.delete('/api/admin/products/{product_id}')
+def admin_product_delete(product_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(Product, product_id)
+    if not p: raise HTTPException(404, 'Product not found')
+    db.delete(p); db.commit(); return {'ok': True}
+
+@app.get('/api/admin/orders')
+def admin_orders(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    rows = db.query(Order).order_by(Order.id.desc()).limit(200).all()
+    return [{'id':o.id,'status':o.status,'total':money(o.total),'customer_name':o.customer_name,'phone':o.phone,'delivery_type':o.delivery_type,'city_name':o.city_name,'address':o.address,'created_at':o.created_at.isoformat()} for o in rows]
+
+@app.patch('/api/admin/orders/{order_id}/status')
+def admin_order_status(order_id: int, status: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    o = db.get(Order, order_id)
+    if not o: raise HTTPException(404, 'Order not found')
+    o.status = status; db.commit(); return {'ok': True, 'status': status}
+
+@app.get('/api/admin/settings')
+def admin_settings(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return {s.key:s.value for s in db.query(Setting).all()}
+
+@app.patch('/api/admin/settings')
+def admin_settings_patch(body: SettingsPatch, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    for k,v in body.values.items():
+        s = db.get(Setting, k)
+        if not s: s = Setting(key=k, value=v); db.add(s)
+        else: s.value = v
+    db.commit(); return {'ok': True}
+
+
+# LAVKA PUBLIC INFO API
+@app.get('/api/info')
+def public_info(db: Session = Depends(get_db)):
+    allowed = {
+        'info_about',
+        'info_delivery',
+        'info_payment',
+        'info_returns',
+        'info_support',
+        'info_documents',
+        'info_privacy',
+        'info_consent',
+    }
+    rows = db.query(Setting).filter(Setting.key.in_(allowed)).all()
+    return {row.key: row.value for row in rows}
+
+app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')

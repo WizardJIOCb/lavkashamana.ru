@@ -1,0 +1,157 @@
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const DEV_USER = { id: 777000, username: 'shamanchik007' };
+const state = { boot:null, tab:'shop', category:'all', cart:JSON.parse(localStorage.getItem('shaman_cart')||'{}') };
+const $ = s => document.querySelector(s);
+const rub = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(Number(n||0));
+const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+function authHeaders(){
+  const h={'Content-Type':'application/json'};
+  if (tg?.initData) h['X-Telegram-Init-Data']=tg.initData;
+  else { h['X-Dev-Telegram-Id']=String(DEV_USER.id); h['X-Dev-Username']=DEV_USER.username; }
+  const ref = new URLSearchParams(location.search).get('ref'); if(ref) h['X-Referrer-Telegram-Id']=ref;
+  return h;
+}
+async function api(path, opts={}){
+  const r = await fetch(path,{...opts,headers:{...authHeaders(),...(opts.headers||{})}});
+  if(!r.ok){ let msg=await r.text(); try{msg=JSON.parse(msg).detail||msg}catch{} throw new Error(msg); }
+  const ct=r.headers.get('content-type')||''; return ct.includes('json')?r.json():r.text();
+}
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2400); }
+function saveCart(){ localStorage.setItem('shaman_cart',JSON.stringify(state.cart)); updateBadge(); }
+function updateBadge(){ const n=Object.values(state.cart).reduce((a,b)=>a+b,0); $('#cartBadge').textContent=n?`(${n})`:''; }
+function cartLines(){ if(!state.boot)return[]; return Object.entries(state.cart).map(([id,qty])=>[state.boot.products.find(p=>p.id==id),qty]).filter(x=>x[0]); }
+function addCart(id){ const p=state.boot.products.find(x=>x.id===id); if(!p||p.stock<1)return; state.cart[id]=Math.min((state.cart[id]||0)+1,p.stock); saveCart(); toast('Добавлено в корзину'); render(); }
+function setQty(id,delta){ const p=state.boot.products.find(x=>x.id==id); let q=(state.cart[id]||0)+delta; if(q<=0)delete state.cart[id]; else state.cart[id]=Math.min(q,p.stock); saveCart(); render(); }
+
+async function boot(){
+  try{ state.boot=await api('/api/bootstrap'); $('#adminTab').classList.toggle('hidden',!state.boot.me.is_admin); render(); }
+  catch(e){ $('#content').innerHTML=`<div class="panel"><h2>Не удалось открыть приложение</h2><p class="muted">${esc(e.message)}</p></div>`; }
+}
+function nav(){ document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); }
+function render(){ nav(); updateBadge(); const c=$('#content'); if(!state.boot)return; if(state.tab==='shop')c.innerHTML=shopView(); if(state.tab==='cart')c.innerHTML=cartView(); if(state.tab==='profile')c.innerHTML=profileView(); if(state.tab==='admin')c.innerHTML=adminView(); bind(); }
+
+function shopView(){
+  const cats=[{id:'all',name:'Все'},...state.boot.categories];
+  const products=state.boot.products.filter(p=>state.category==='all'||p.category_id==state.category);
+  return `<section class="section"><div class="pill-row">${cats.map(c=>`<button class="pill ${String(c.id)===String(state.category)?'active':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div></section>
+  <section class="section"><div class="section-head"><h2>Каталог</h2><span class="muted">${products.length} поз.</span></div>
+  ${products.length?`<div class="grid">${products.map(p=>`<article class="card"><img class="product-img" src="${esc(p.image_url||'/logo.jpg')}" onerror="this.src='/logo.jpg'"><div class="product-body"><div class="product-title">${esc(p.name)}</div><div class="product-desc">${esc(p.description||'')}</div><div class="price-row"><div><div class="price">${rub(p.price)}</div><small class="muted">${p.stock>0?'В наличии':'Нет в наличии'}</small></div><button class="btn gold" data-add="${p.id}" ${p.stock<1?'disabled':''}>+</button></div></div></article>`).join('')}</div>`:`<div class="empty">В этой категории пока нет товаров.</div>`}</section>`;
+}
+function cartView(){
+  const lines=cartLines(), total=lines.reduce((s,[p,q])=>s+p.price*q,0);
+  if(!lines.length)return `<div class="panel empty"><h2>Корзина пустая</h2><p>Добавь товары из каталога.</p><button class="btn" data-go="shop">В каталог</button></div>`;
+  return `<section class="section"><div class="section-head"><h2>Корзина</h2><strong>${rub(total)}</strong></div><div class="panel">${lines.map(([p,q])=>`<div class="cart-line"><img src="${esc(p.image_url||'/logo.jpg')}"><div><strong>${esc(p.name)}</strong><div class="muted">${rub(p.price)} × ${q}</div></div><div class="qty"><button data-qty="${p.id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${p.id}" data-delta="1">+</button></div></div>`).join('')}</div></section>
+  <section class="section"><div class="panel"><div class="section-head"><h2>Итого</h2><strong>${rub(total)}</strong></div><p class="muted">Доставка и внутренний баланс рассчитываются на оформлении.</p><button class="btn gold" id="checkoutBtn">Оформить заказ</button></div></section>`;
+}
+function profileView(){ const m=state.boot.me; return `<section class="section"><div class="panel"><div class="section-head"><div><div class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</div><h2>${esc(m.first_name||m.username||'Покупатель')}</h2></div><span class="badge">@${esc(m.username||'')}</span></div><div class="stat-grid"><div class="stat"><strong>${rub(m.balance)}</strong><span>внутренний баланс</span></div><div class="stat"><strong>${m.referral_rate}%</strong><span>реферальная ставка</span></div><div class="stat"><strong>${m.active_referrals}</strong><span>купивших приглашённых</span></div></div></div></section>
+  <section class="section"><div class="panel"><h2>Приглашай друзей</h2><p class="muted">1 купивший приглашённый = 1%. Ставка растёт до 10% и начисляется на твой внутренний баланс с покупок приглашённых.</p><div class="ref-link"><input value="${esc(m.referral_link)}" readonly id="refLink"><button class="btn" id="copyRef">Копировать</button></div></div></section>
+  <section class="section"><div class="section-head"><h2>Заказы</h2></div><div class="panel">${state.boot.orders.length?state.boot.orders.map(o=>`<div class="order"><div><strong>Заказ №${o.id}</strong><div class="muted">${new Date(o.created_at).toLocaleString('ru-RU')}</div></div><div style="text-align:right"><span class="badge">${esc(o.status)}</span><div><strong>${rub(o.total)}</strong></div></div></div>`).join(''):'<div class="empty">Заказов пока нет.</div>'}</div></section><section class="section"><button class="btn secondary" id="refsBtn">История рефералов</button></section>`; }
+
+function adminView(){ if(!state.boot.me.is_admin)return '<div class="panel">Нет доступа</div>'; return `<section class="section"><div class="panel"><div class="eyebrow">УПРАВЛЕНИЕ</div><h2>Админка</h2><p class="muted">Товары и категории меняются без правки кода.</p><div class="admin-actions"><button class="btn gold" id="newProduct">+ Товар</button><button class="btn" id="newCategory">+ Категория</button><button class="btn secondary" id="reloadAdmin">Обновить</button></div></div></section><section class="section"><div class="section-head"><h2>Товары</h2></div><div class="admin-list">${state.boot.products.map(p=>`<div class="admin-row"><div><strong>${esc(p.name)}</strong><div class="muted">${rub(p.price)} · остаток ${p.stock}</div></div><div class="admin-actions"><button class="btn secondary" data-edit-product="${p.id}">Править</button></div></div>`).join('')||'<div class="empty">Пока нет товаров</div>'}</div></section><section class="section"><div class="section-head"><h2>Категории</h2></div><div class="admin-list">${state.boot.categories.map(c=>`<div class="admin-row"><div><strong>${esc(c.name)}</strong><div class="muted">${esc(c.slug)}</div></div><button class="btn secondary" data-edit-category="${c.id}">Править</button></div>`).join('')}</div></section><section class="section"><button class="btn secondary" id="adminOrders">Заказы покупателей</button></section>`; }
+
+function bind(){
+  document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{state.category=b.dataset.cat;render()});
+  document.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addCart(Number(b.dataset.add)));
+  document.querySelectorAll('[data-qty]').forEach(b=>b.onclick=()=>setQty(Number(b.dataset.qty),Number(b.dataset.delta)));
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.go;render()});
+  $('#checkoutBtn')&&($('#checkoutBtn').onclick=checkoutModal);
+  $('#copyRef')&&($('#copyRef').onclick=async()=>{await navigator.clipboard.writeText($('#refLink').value);toast('Ссылка скопирована')});
+  $('#refsBtn')&&($('#refsBtn').onclick=showReferrals);
+  $('#newProduct')&&($('#newProduct').onclick=()=>productModal());
+  $('#newCategory')&&($('#newCategory').onclick=()=>categoryModal());
+  $('#reloadAdmin')&&($('#reloadAdmin').onclick=async()=>{state.boot=await api('/api/bootstrap');render()});
+  document.querySelectorAll('[data-edit-product]').forEach(b=>b.onclick=()=>productModal(state.boot.products.find(p=>p.id==b.dataset.editProduct)));
+  document.querySelectorAll('[data-edit-category]').forEach(b=>b.onclick=()=>categoryModal(state.boot.categories.find(c=>c.id==b.dataset.editCategory)));
+  $('#adminOrders')&&($('#adminOrders').onclick=showAdminOrders);
+}
+function modal(html){ const d=document.createElement('div'); d.className='modal'; d.innerHTML=`<div class="modal-card">${html}</div>`; d.onclick=e=>{if(e.target===d)d.remove()}; document.body.appendChild(d); return d; }
+
+async function checkoutModal(){
+  const lines=cartLines(); const items=lines.map(([p,q])=>({product_id:p.id,qty:q}));
+  const d=modal(`<div class="section-head"><h2>Оформление</h2><button class="btn secondary" id="closeM">Закрыть</button></div><div class="form"><div class="field"><label>Имя</label><input id="coName" value="${esc(state.boot.me.first_name||'')}"></div><div class="field"><label>Телефон</label><input id="coPhone" placeholder="+7..."></div><div class="field"><label>Город доставки</label><input id="coCity" placeholder="Начните вводить город"><div id="cityResults"></div></div><div class="field"><label>Способ доставки</label><select id="coType"><option value="pickup">СДЭК ПВЗ</option><option value="courier">СДЭК курьер</option></select></div><div class="field" id="tariffField"><label>Тариф</label><select id="coTariff"><option value="">Сначала выберите город</option></select></div><div class="field hidden" id="pvzField"><label>Пункт выдачи</label><select id="coPvz"><option value="">Выберите ПВЗ</option></select></div><div class="field hidden" id="addressField"><label>Адрес курьерской доставки</label><input id="coAddress" placeholder="Улица, дом, квартира"></div><div class="field"><label>Использовать внутренний баланс</label><input id="coBalance" type="number" min="0" max="${state.boot.me.balance}" value="0"></div><div class="notice" id="deliveryNotice">Выберите город — приложение запросит доступные тарифы СДЭК.</div><button class="btn gold" id="placeOrder">Создать заказ</button></div>`);
+  $('#closeM').onclick=()=>d.remove(); let city=null, tariffs=[];
+  const updateMode=()=>{ const pickup=$('#coType').value==='pickup'; $('#pvzField').classList.toggle('hidden',!pickup); $('#addressField').classList.toggle('hidden',pickup); renderTariffs(); };
+  const renderTariffs=()=>{ const mode=$('#coType').value; const filtered=tariffs.filter(t=>{const dm=Number(t.delivery_mode||0); return mode==='pickup'?[2,4].includes(dm):[1,3].includes(dm)}); $('#coTariff').innerHTML='<option value="">Выберите тариф</option>'+filtered.map(t=>`<option value="${t.tariff_code}" data-price="${t.delivery_sum??t.total_sum??0}">${esc(t.tariff_name||('Тариф '+t.tariff_code))} — ${rub(t.delivery_sum??t.total_sum??0)} · ${t.period_min??'?'}–${t.period_max??'?'} дн.</option>`).join(''); };
+  $('#coType').onchange=updateMode; updateMode();
+  let timer; $('#coCity').oninput=()=>{clearTimeout(timer);timer=setTimeout(async()=>{const q=$('#coCity').value.trim(); if(q.length<2)return; try{const rows=await api('/api/cdek/cities?q='+encodeURIComponent(q)); $('#cityResults').innerHTML=rows.slice(0,7).map(c=>`<button class="pill" data-city-code="${c.code}" data-city-name="${esc(c.city)}">${esc(c.city)} · ${esc(c.region||'')}</button>`).join(''); document.querySelectorAll('[data-city-code]').forEach(b=>b.onclick=async()=>{city={code:Number(b.dataset.cityCode),name:b.dataset.cityName};$('#coCity').value=city.name;$('#cityResults').innerHTML=''; try{const qr=await api('/api/cdek/quote',{method:'POST',body:JSON.stringify({items,to_city_code:city.code})}); tariffs=qr.tariff_codes||[];renderTariffs(); const pvz=await api('/api/cdek/pvz?city_code='+city.code); $('#coPvz').innerHTML='<option value="">Выберите ПВЗ</option>'+pvz.slice(0,120).map(x=>`<option value="${esc(x.code)}">${esc(x.name||x.code)} — ${esc(x.location?.address||'')}</option>`).join(''); $('#deliveryNotice').textContent=`Найдено тарифов: ${tariffs.length}. ПВЗ: ${pvz.length}.`; }catch(e){ $('#deliveryNotice').textContent='СДЭК пока не подключён: '+e.message; tariffs=[]; renderTariffs(); }}); }catch(e){$('#deliveryNotice').textContent='СДЭК пока не подключён: '+e.message;}},350)};
+  $('#placeOrder').onclick=async()=>{ try{ const pickup=$('#coType').value==='pickup'; const tariff=Number($('#coTariff').value||0)||null; const pvz=pickup?($('#coPvz').value||null):null; const payload={items,customer_name:$('#coName').value.trim(),phone:$('#coPhone').value.trim(),city_code:city?.code||null,city_name:city?.name||$('#coCity').value.trim()||null,delivery_type:$('#coType').value,delivery_tariff_code:tariff,delivery_point:pvz,delivery_total:0,address:pickup?null:($('#coAddress').value.trim()||null),use_balance:Number($('#coBalance').value||0)}; if(!payload.customer_name||!payload.phone)throw new Error('Заполни имя и телефон'); if(state.boot.integrations.cdek && (!payload.city_code||!payload.delivery_tariff_code))throw new Error('Выбери город и тариф СДЭК'); if(state.boot.integrations.cdek && pickup&&!payload.delivery_point)throw new Error('Выбери ПВЗ'); if(state.boot.integrations.cdek && !pickup&&!payload.address)throw new Error('Укажи адрес курьерской доставки'); const r=await api('/api/orders',{method:'POST',body:JSON.stringify(payload)}); state.cart={};saveCart();d.remove(); if(r.payment_url){ if(tg?.openLink)tg.openLink(r.payment_url); else location.href=r.payment_url; } else {toast('Заказ создан'); await boot();} }catch(e){toast(e.message)} };
+}
+
+async function showReferrals(){ try{const r=await api('/api/referrals'); modal(`<div class="section-head"><h2>Реферальная программа</h2><span class="badge">${r.rate}%</span></div><p class="muted">Активных покупателей: ${r.active_count}</p><div class="admin-list">${r.people.map(p=>`<div class="admin-row"><div><strong>${esc(p.first_name||p.username||p.telegram_id)}</strong><div class="muted">${p.bought?'Покупал':'Ещё не покупал'}</div></div><span class="badge">${p.paid_orders} заказ.</span></div>`).join('')||'<div class="empty">Пока никого</div>'}</div><h3>Начисления</h3><div class="admin-list">${r.credits.map(c=>`<div class="admin-row"><div>Заказ №${c.order_id}<div class="muted">${c.rate}% от ${rub(c.base)}</div></div><strong>+${rub(c.amount)}</strong></div>`).join('')||'<div class="empty">Начислений пока нет</div>'}</div>`);}catch(e){toast(e.message)} }
+
+function productModal(p={}){ const d=modal(`<div class="section-head"><h2>${p.id?'Редактировать':'Новый товар'}</h2><button class="btn secondary" id="closeM">Закрыть</button></div><div class="form"><div class="field"><label>Название</label><input id="pName" value="${esc(p.name||'')}"></div><div class="field"><label>Категория</label><select id="pCat"><option value="">Без категории</option>${state.boot.categories.map(c=>`<option value="${c.id}" ${p.category_id==c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div><div class="field"><label>Описание</label><textarea id="pDesc">${esc(p.description||'')}</textarea></div><div class="field"><label>Цена, ₽</label><input id="pPrice" type="number" value="${p.price??0}"></div><div class="field"><label>Остаток</label><input id="pStock" type="number" value="${p.stock??0}"></div><div class="field"><label>Фото</label><input id="pImg" value="${esc(p.image_url||'')}" placeholder="Ссылка или загруженный файл"><input id="pFile" type="file" accept="image/jpeg,image/png,image/webp"><button class="btn secondary" id="uploadP" type="button">Загрузить фото</button></div><div class="field"><label>Вес, г</label><input id="pWeight" type="number" value="${p.weight_g??200}"></div><div class="field"><label>Габариты, см (Д × Ш × В)</label><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><input id="pL" type="number" value="${p.length_cm??15}"><input id="pW" type="number" value="${p.width_cm??20}"><input id="pH" type="number" value="${p.height_cm??10}"></div></div><button class="btn gold" id="saveP">Сохранить</button>${p.id?'<button class="btn danger" id="delP">Удалить</button>':''}</div>`); $('#closeM').onclick=()=>d.remove(); $('#uploadP').onclick=async()=>{try{const f=$('#pFile').files[0];if(!f)throw new Error('Выбери файл');const fd=new FormData();fd.append('file',f);const h=authHeaders();delete h['Content-Type'];const r=await fetch('/api/admin/upload',{method:'POST',headers:h,body:fd});if(!r.ok)throw new Error((await r.json()).detail||'Ошибка загрузки');const out=await r.json();$('#pImg').value=out.url;toast('Фото загружено')}catch(e){toast(e.message)}}; $('#saveP').onclick=async()=>{try{const body={category_id:$('#pCat').value?Number($('#pCat').value):null,name:$('#pName').value.trim(),description:$('#pDesc').value.trim(),price:Number($('#pPrice').value),stock:Number($('#pStock').value),image_url:$('#pImg').value.trim(),weight_g:Number($('#pWeight').value),length_cm:Number($('#pL').value),width_cm:Number($('#pW').value),height_cm:Number($('#pH').value),active:true}; await api(p.id?`/api/admin/products/${p.id}`:'/api/admin/products',{method:p.id?'PUT':'POST',body:JSON.stringify(body)});d.remove();await boot();toast('Сохранено')}catch(e){toast(e.message)}}; if(p.id)$('#delP').onclick=async()=>{if(confirm('Удалить товар?')){await api(`/api/admin/products/${p.id}`,{method:'DELETE'});d.remove();await boot();}}; }
+function categoryModal(c={}){ const d=modal(`<div class="section-head"><h2>${c.id?'Категория':'Новая категория'}</h2><button class="btn secondary" id="closeM">Закрыть</button></div><div class="form"><div class="field"><label>Название</label><input id="cName" value="${esc(c.name||'')}"></div><div class="field"><label>Slug</label><input id="cSlug" value="${esc(c.slug||'')}"></div><div class="field"><label>Порядок</label><input id="cSort" type="number" value="${c.sort_order??0}"></div><button class="btn gold" id="saveC">Сохранить</button></div>`); $('#closeM').onclick=()=>d.remove(); $('#saveC').onclick=async()=>{try{const body={name:$('#cName').value.trim(),slug:$('#cSlug').value.trim(),sort_order:Number($('#cSort').value||0),active:true};await api(c.id?`/api/admin/categories/${c.id}`:'/api/admin/categories',{method:c.id?'PUT':'POST',body:JSON.stringify(body)});d.remove();await boot();toast('Сохранено')}catch(e){toast(e.message)}}; }
+async function showAdminOrders(){ try{const rows=await api('/api/admin/orders'); modal(`<div class="section-head"><h2>Заказы</h2><span class="badge">${rows.length}</span></div><div class="admin-list">${rows.map(o=>`<div class="admin-row"><div><strong>№${o.id} · ${rub(o.total)}</strong><div class="muted">${esc(o.customer_name||'')} · ${esc(o.phone||'')}<br>${esc(o.city_name||'')} ${esc(o.address||'')}</div></div><span class="badge">${esc(o.status)}</span></div>`).join('')||'<div class="empty">Нет заказов</div>'}</div>`);}catch(e){toast(e.message)} }
+
+document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render()});
+updateBadge(); boot();
+
+
+/* LAVKA INFO PAGE */
+const __lavkaRenderBeforeInfo = render;
+
+render = function(){
+  if(state.tab !== 'info'){
+    return __lavkaRenderBeforeInfo();
+  }
+
+  document.querySelectorAll('.bottom-nav button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === 'info');
+  });
+
+  document.getElementById('content').innerHTML = `
+    <section class="section info-page">
+
+      <div class="info-intro">
+        <h2>Информация</h2>
+        <p>Всё основное о Лавке Шамана, заказах, доставке и поддержке в одном месте.</p>
+      </div>
+
+      <details class="info-item" open>
+        <summary>О Лавке Шамана</summary>
+        <div class="info-text">
+          Лавка Шамана - пространство природных товаров, чаёв, трав, масел, мёда, аксессуаров и будущего авторского мерча. Мы хотим собирать здесь вещи, которые помогают быть ближе к природе и к себе.
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Доставка</summary>
+        <div class="info-text">
+          Доступные варианты доставки и их стоимость будут отображаться при оформлении заказа. После отправки заказа покупатель получает информацию для отслеживания.
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Оплата</summary>
+        <div class="info-text">
+          Доступный способ оплаты будет указан непосредственно при оформлении заказа. Не переводите деньги по реквизитам, полученным из посторонних сообщений или неизвестных аккаунтов.
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Возврат и отмена</summary>
+        <div class="info-text">
+          Если заказ ещё не передан в доставку, свяжитесь с поддержкой как можно быстрее. Условия возврата зависят от категории товара и состояния заказа.
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Поддержка</summary>
+        <div class="info-text">
+          Если возник вопрос по товару или заказу, напишите нам в Telegram. Мы постараемся помочь и разобраться по существу.
+        </div>
+      </details>
+
+      <details class="info-item">
+        <summary>Документы</summary>
+        <div class="info-text">
+          Здесь будут размещены политика обработки персональных данных, согласие на обработку данных, публичная оферта и информация о продавце.
+        </div>
+      </details>
+
+    </section>
+  `;
+};
