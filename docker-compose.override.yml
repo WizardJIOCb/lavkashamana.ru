@@ -1,3 +1,13 @@
-services:
-  bot:
-    network_mode: host
+{
+  "services": {
+    "bot": {
+      "network_mode": "host"
+    },
+    "api": {
+      "volumes": [
+        "./static/uploads:/app/static/uploads",
+        "./static/document:/app/static/document"
+      ]
+    }
+  }
+}

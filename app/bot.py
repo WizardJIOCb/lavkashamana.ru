@@ -274,83 +274,84 @@ DISCUSSION_CHAT_ID = -1003995600729
 DISCUSSION_USERNAME = "shamankoment"
 _discussion_links: dict[int, str] = {}
 _button_targets: set[int] = set()
+_button_locks: dict[int, asyncio.Lock] = {}
 
 
 async def _attach_channel_buttons(bot: Bot, message_id: int, comment_url: str | None = None):
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-    if comment_url is None:
-        _button_targets.add(message_id)
-        comment_url = _discussion_links.get(message_id)
-    else:
-        _discussion_links[message_id] = comment_url
+    lock = _button_locks.setdefault(message_id, asyncio.Lock())
+    async with lock:
+        if comment_url is None:
+            _button_targets.add(message_id)
+            for _ in range(6):
+                comment_url = _discussion_links.get(message_id)
+                if comment_url:
+                    break
+                await asyncio.sleep(1)
+        else:
+            _discussion_links[message_id] = comment_url
 
-    rows = []
+        rows = []
+        if comment_url:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text="💬 Оставить комментарий",
+                        url=comment_url,
+                    )
+                ]
+            )
 
-    if comment_url:
-        rows.append(
+        rows.extend(
             [
-                InlineKeyboardButton(
-                    text="💬 Оставить комментарий",
-                    url=comment_url,
-                )
+                [
+                    InlineKeyboardButton(
+                        text="🟣 Лавка MAX",
+                        url="https://max.ru/id26509411367_biz",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="💬 Консультация",
+                        url="https://t.me/Shamanchik007",
+                    ),
+                    InlineKeyboardButton(
+                        text="⭐ Отзывы",
+                        url="https://t.me/+yRqvyOdm_c4yODEy",
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="🌐 Сайт Лавки Шамана",
+                        url="https://shamanchik.ru",
+                    )
+                ],
             ]
         )
 
-    rows.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text="🟣 Лавка MAX",
-                    url="https://max.ru/id26509411367_biz",
+        kb = InlineKeyboardMarkup(inline_keyboard=rows)
+        last_exc = None
+        for attempt in range(5):
+            try:
+                await bot.edit_message_reply_markup(
+                    chat_id=settings.telegram_source_channel_id,
+                    message_id=message_id,
+                    reply_markup=kb,
                 )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="💬 Консультация",
-                    url="https://t.me/Shamanchik007",
-                ),
-                InlineKeyboardButton(
-                    text="⭐ Отзывы",
-                    url="https://t.me/+yRqvyOdm_c4yODEy",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🌐 Сайт Лавки Шамана",
-                    url="https://shamanchik.ru",
+                print(
+                    f"Telegram buttons attached message={message_id} "
+                    f"comments={'yes' if comment_url else 'no'} attempt={attempt + 1}",
+                    flush=True,
                 )
-            ],
-        ]
-    )
-
-    kb = InlineKeyboardMarkup(inline_keyboard=rows)
-
-    last_exc = None
-    for attempt in range(5):
-        try:
-            await bot.edit_message_reply_markup(
-                chat_id=settings.telegram_source_channel_id,
-                message_id=message_id,
-                reply_markup=kb,
-            )
-            print(
-                f"Telegram buttons attached message={message_id} "
-                f"comments={'yes' if comment_url else 'no'} attempt={attempt + 1}",
-                flush=True,
-            )
-            if comment_url:
-                _button_targets.discard(message_id)
-                _discussion_links.pop(message_id, None)
-            return
-        except Exception as exc:
-            last_exc = exc
-            if attempt == 4:
-                raise
-            await asyncio.sleep(2 * (attempt + 1))
-
-    if last_exc:
-        raise last_exc
+                if comment_url:
+                    _button_targets.discard(message_id)
+                return
+            except Exception as exc:
+                last_exc = exc
+                if attempt == 4:
+                    raise
+                await asyncio.sleep(2 * (attempt + 1))
 
 
 def _is_discussion_forward(message) -> bool:
