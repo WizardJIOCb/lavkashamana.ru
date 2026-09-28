@@ -1,13 +1,3 @@
-{
-  "services": {
-    "api": {
-      "volumes": [
-        {
-          "type": "bind",
-          "source": "./static/uploads",
-          "target": "/app/static/uploads"
-        }
-      ]
-    }
-  }
-}
+services:
+  bot:
+    network_mode: host

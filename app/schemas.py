@@ -34,6 +34,7 @@ class OrderIn(BaseModel):
     customer_name: str
     phone: str
     email: str
+    promo_code: Optional[str] = None
     city_code: Optional[int] = None
     city_name: Optional[str] = None
     delivery_type: str = 'pickup'
@@ -42,6 +43,12 @@ class OrderIn(BaseModel):
     delivery_total: float = 0
     address: Optional[str] = None
     use_balance: float = Field(default=0, ge=0)
+
+class PromoCodeIn(BaseModel):
+    code: str
+    percent: float = Field(ge=0, le=10)
+    max_uses: int = Field(default=0, ge=0)
+    active: bool = True
 
 class SettingsPatch(BaseModel):
     values: dict[str, str]

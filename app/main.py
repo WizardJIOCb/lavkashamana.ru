@@ -10,8 +10,8 @@ from sqlalchemy import func
 
 from .config import settings
 from .db import Base, engine, get_db
-from .models import User, Category, Product, Order, OrderItem, ReferralCredit, Setting
-from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, SettingsPatch
+from .models import User, Category, Product, Order, OrderItem, ReferralCredit, Setting, PromoCode
+from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, SettingsPatch, PromoCodeIn
 from .services.telegram import get_current_user, require_admin
 from .services.referrals import active_referrals_count, referral_rate, credit_referrer_for_paid_order
 from .services.cdek import cdek
@@ -33,6 +33,7 @@ def user_json(db, u: User):
         'telegram_id': u.telegram_id,
         'username': u.username,
         'first_name': u.first_name,
+        'full_name': u.full_name,
         'phone': u.phone,
         'email': u.email,
         'city_code': u.city_code,
@@ -44,7 +45,11 @@ def user_json(db, u: User):
         'balance': money(u.balance),
         'active_referrals': active,
         'referral_rate': money(rate),
-        'referral_link': f'https://t.me/{settings.bot_username}?start=ref_{u.telegram_id}',
+        'referral_link': (
+            f'https://max.ru/{settings.max_bot_username}?startapp=ref_{abs(u.telegram_id)}'
+            if u.telegram_id < 0
+            else f'https://t.me/{settings.bot_username}?start=ref_{u.telegram_id}'
+        ),
     }
 
 def category_json(c):
@@ -241,9 +246,24 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
     if '@' not in email or '.' not in email.rsplit('@', 1)[-1]:
         raise HTTPException(400, 'Укажите корректный email для кассового чека')
     items_total = sum((Decimal(p.price) * qty for p, qty in lines), Decimal('0'))
+    promo_code = (body.promo_code or '').strip().upper()
+    promo_percent = Decimal('0')
+    promo_discount = Decimal('0')
+    if promo_code:
+        promo = db.query(PromoCode).filter(
+            PromoCode.code == promo_code,
+            PromoCode.active.is_(True),
+        ).first()
+        if not promo:
+            raise HTTPException(400, 'Промокод не найден или отключён')
+        if int(promo.max_uses or 0) > 0 and int(promo.used_count or 0) >= int(promo.max_uses):
+            raise HTTPException(400, 'Лимит использований промокода исчерпан')
+        promo_percent = Decimal(str(promo.percent or 0)).quantize(Decimal('0.01'))
+        promo_discount = (items_total * promo_percent / Decimal('100')).quantize(Decimal('0.01'))
+    discounted_items_total = max(Decimal('0'), items_total - promo_discount)
     requested_balance = Decimal(str(body.use_balance)).quantize(Decimal('0.01'))
     available = Decimal(user.balance or 0)
-    balance_used = min(requested_balance, available, items_total)
+    balance_used = min(requested_balance, available, discounted_items_total)
     delivery_total = Decimal(str(body.delivery_total)).quantize(Decimal('0.01'))
     # Never trust a delivery price sent by the browser when CDEK is connected.
     if cdek.configured:
@@ -259,15 +279,17 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
         if not selected:
             raise HTTPException(400, 'Выбранный тариф СДЭК не соответствует способу доставки')
         delivery_total = Decimal(str(selected.get('delivery_sum', selected.get('total_sum', 0)))).quantize(Decimal('0.01'))
-    total = items_total - balance_used + delivery_total
+    total = discounted_items_total - balance_used + delivery_total
     order = Order(
         user_id=user.id, status='new', items_total=items_total, balance_used=balance_used,
         delivery_total=delivery_total, total=total, payment_provider=settings.payment_provider,
         delivery_type=body.delivery_type, delivery_tariff_code=body.delivery_tariff_code,
         delivery_point=body.delivery_point, city_code=body.city_code, city_name=body.city_name,
         address=body.address, customer_name=body.customer_name, phone=body.phone, email=email,
+        promo_code=promo_code or None, promo_percent=promo_percent, promo_discount=promo_discount,
     )
     # Запоминаем данные последнего оформления для следующего заказа.
+    user.full_name = body.customer_name
     user.phone = body.phone
     user.email = email
     user.city_code = body.city_code
@@ -499,9 +521,16 @@ async def mark_paid(db: Session, order: Order):
                 product = db.get(Product, line.product_id)
                 if product:
                     product.stock = max(0, product.stock - line.qty)
+        if order.promo_code:
+            promo = db.query(PromoCode).filter(PromoCode.code == order.promo_code).first()
+            if promo:
+                promo.used_count = int(promo.used_count or 0) + 1
+                if int(promo.max_uses or 0) > 0 and promo.used_count >= int(promo.max_uses):
+                    promo.active = False
         db.commit()
         db.refresh(order)
-        credit_referrer_for_paid_order(db, order)
+        if not order.promo_code:
+            credit_referrer_for_paid_order(db, order)
 
     if cdek.configured and not order.cdek_order_uuid:
         try:
@@ -517,6 +546,8 @@ async def mock_success(payment_id: str, order_id: int, db: Session = Depends(get
     order = db.get(Order, order_id)
     if not order or order.payment_id != payment_id:
         raise HTTPException(404, 'Order not found')
+    if str(order.status or '').lower().startswith('cancelled'):
+        return RedirectResponse(url=f'/?cancelled={order.id}')
     await mark_paid(db, order)
     return RedirectResponse(url=f'/?paid={order.id}')
 
@@ -533,6 +564,16 @@ async def yookassa_webhook(request: Request, db: Session = Depends(get_db)):
     gateway = get_gateway()
     payment = await gateway.fetch(payment_id)
     if payment.get('status') == 'succeeded' and payment.get('paid', True):
+        if str(order.status or '').lower().startswith('cancelled'):
+            refunded = Decimal(str((payment.get('refunded_amount') or {}).get('value') or '0'))
+            amount = Decimal(order.total or 0)
+            if amount > 0 and refunded < amount:
+                await gateway.refund(
+                    payment_id,
+                    amount,
+                    idempotence_key=f'lavka-cancelled-order-{order.id}',
+                )
+            return {'ok': True}
         await mark_paid(db, order)
     return {'ok': True}
 
@@ -607,10 +648,150 @@ def admin_orders(admin: User = Depends(require_admin), db: Session = Depends(get
     return [{'id':o.id,'status':o.status,'total':money(o.total),'customer_name':o.customer_name,'phone':o.phone,'delivery_type':o.delivery_type,'city_name':o.city_name,'address':o.address,'created_at':o.created_at.isoformat()} for o in rows]
 
 @app.patch('/api/admin/orders/{order_id}/status')
-def admin_order_status(order_id: int, status: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+async def admin_order_status(order_id: int, status: str, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     o = db.get(Order, order_id)
-    if not o: raise HTTPException(404, 'Order not found')
-    o.status = status; db.commit(); return {'ok': True, 'status': status}
+    if not o:
+        raise HTTPException(404, 'Order not found')
+
+    current = str(o.status or '').lower()
+    target = str(status or '').strip().lower()
+
+    if target not in {'paid', 'cancelled'}:
+        raise HTTPException(400, 'Допустимые статусы: paid, cancelled')
+
+    if current == 'paid':
+        if target == 'paid':
+            return {'ok': True, 'status': 'paid'}
+        raise HTTPException(400, 'Оплаченный заказ нельзя отменить')
+
+    if target == 'paid':
+        if current.startswith('cancelled'):
+            raise HTTPException(400, 'Отменённый заказ нельзя перевести в оплату')
+        await mark_paid(db, o)
+        return {'ok': True, 'status': 'paid'}
+
+    if current == 'cancelled_refunded':
+        return {'ok': True, 'status': 'cancelled'}
+
+    if str(o.payment_provider or '').lower() == 'yookassa' and o.payment_id:
+        gateway = get_gateway()
+        payment = await gateway.fetch(o.payment_id)
+        payment_status = str(payment.get('status') or '').lower()
+        if payment_status == 'succeeded':
+            await mark_paid(db, o)
+            raise HTTPException(409, 'Платёж уже прошёл в ЮKassa. Заказ отмечен оплаченным.')
+        if payment_status == 'waiting_for_capture':
+            await gateway.cancel(o.payment_id)
+
+    user = db.get(User, o.user_id)
+    refund_balance = Decimal(o.balance_used or 0)
+    if refund_balance > 0 and user:
+        user.balance = Decimal(user.balance or 0) + refund_balance
+
+    o.status = 'cancelled_refunded'
+    db.commit()
+    return {'ok': True, 'status': 'cancelled', 'balance_refunded': money(refund_balance)}
+
+
+@app.delete('/api/admin/orders/{order_id}')
+async def admin_order_delete(order_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    o = db.get(Order, order_id)
+    if not o:
+        raise HTTPException(404, 'Order not found')
+
+    current = str(o.status or '').lower()
+    if current == 'paid':
+        raise HTTPException(400, 'Оплаченный заказ удалять нельзя')
+
+    if db.query(ReferralCredit).filter(ReferralCredit.source_order_id == o.id).first():
+        raise HTTPException(400, 'У заказа есть реферальное начисление. Удаление запрещено.')
+
+    if str(o.payment_provider or '').lower() == 'yookassa' and o.payment_id:
+        gateway = get_gateway()
+        payment = await gateway.fetch(o.payment_id)
+        payment_status = str(payment.get('status') or '').lower()
+        if payment_status == 'succeeded':
+            await mark_paid(db, o)
+            raise HTTPException(409, 'Платёж уже прошёл в ЮKassa. Заказ отмечен оплаченным.')
+        if payment_status not in {'canceled', 'cancelled'}:
+            raise HTTPException(
+                409,
+                'Платёж в ЮKassa ещё активен. Сначала отмените заказ; удалить его можно после окончательной отмены платежа.'
+            )
+
+    if current != 'cancelled_refunded':
+        user = db.get(User, o.user_id)
+        refund_balance = Decimal(o.balance_used or 0)
+        if refund_balance > 0 and user:
+            user.balance = Decimal(user.balance or 0) + refund_balance
+
+    db.query(OrderItem).filter(OrderItem.order_id == o.id).delete(synchronize_session=False)
+    db.delete(o)
+    db.commit()
+    return {'ok': True}
+
+def promo_json(p: PromoCode):
+    limit = int(p.max_uses or 0)
+    used = int(p.used_count or 0)
+    return {
+        'id': p.id,
+        'code': p.code,
+        'percent': money(p.percent),
+        'max_uses': limit,
+        'used_count': used,
+        'remaining': None if limit == 0 else max(0, limit - used),
+        'active': bool(p.active),
+    }
+
+@app.get('/api/admin/promocodes')
+def admin_promocodes(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return [promo_json(p) for p in db.query(PromoCode).order_by(PromoCode.id.desc()).all()]
+
+@app.post('/api/admin/promocodes')
+def admin_promocode_create(body: PromoCodeIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    code = (body.code or '').strip().upper()
+    if not code:
+        raise HTTPException(400, 'Укажи промокод')
+    if db.query(PromoCode).filter(PromoCode.code == code).first():
+        raise HTTPException(400, 'Такой промокод уже существует')
+    p = PromoCode(
+        code=code,
+        percent=Decimal(str(body.percent)).quantize(Decimal('0.01')),
+        max_uses=int(body.max_uses),
+        active=bool(body.active),
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return promo_json(p)
+
+@app.put('/api/admin/promocodes/{promo_id}')
+def admin_promocode_update(promo_id: int, body: PromoCodeIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(PromoCode, promo_id)
+    if not p:
+        raise HTTPException(404, 'Промокод не найден')
+    code = (body.code or '').strip().upper()
+    if not code:
+        raise HTTPException(400, 'Укажи промокод')
+    duplicate = db.query(PromoCode).filter(PromoCode.code == code, PromoCode.id != promo_id).first()
+    if duplicate:
+        raise HTTPException(400, 'Такой промокод уже существует')
+    p.code = code
+    p.percent = Decimal(str(body.percent)).quantize(Decimal('0.01'))
+    p.max_uses = int(body.max_uses)
+    p.active = bool(body.active)
+    db.commit()
+    db.refresh(p)
+    return promo_json(p)
+
+@app.delete('/api/admin/promocodes/{promo_id}')
+def admin_promocode_delete(promo_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    p = db.get(PromoCode, promo_id)
+    if not p:
+        raise HTTPException(404, 'Промокод не найден')
+    db.delete(p)
+    db.commit()
+    return {'ok': True}
 
 @app.get('/api/admin/settings')
 def admin_settings(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
@@ -678,6 +859,7 @@ def admin_sales_overview(
     sales_total = sum(
         (
             Decimal(o.items_total or 0) -
+            Decimal(o.promo_discount or 0) -
             Decimal(o.balance_used or 0)
             for o in paid_orders
         ),
@@ -698,6 +880,9 @@ def admin_sales_overview(
             'address': o.address,
             'delivery_type': o.delivery_type,
             'items_total': money(o.items_total),
+            'promo_code': getattr(o, 'promo_code', None),
+            'promo_percent': money(getattr(o, 'promo_percent', 0)),
+            'promo_discount': money(getattr(o, 'promo_discount', 0)),
             'balance_used': money(o.balance_used),
             'delivery_total': money(o.delivery_total),
             'total': money(o.total),

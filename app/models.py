@@ -10,6 +10,7 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String(128), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     city_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -68,6 +69,9 @@ class Order(Base):
     customer_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    promo_code: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    promo_percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
+    promo_discount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     cdek_order_uuid: Mapped[str | None] = mapped_column(String(160), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -81,6 +85,16 @@ class OrderItem(Base):
     qty: Mapped[int] = mapped_column(Integer)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     line_total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+
+class PromoCode(Base):
+    __tablename__ = 'promo_codes'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    percent: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
+    max_uses: Mapped[int] = mapped_column(Integer, default=0)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 class ReferralCredit(Base):
     __tablename__ = 'referral_credits'

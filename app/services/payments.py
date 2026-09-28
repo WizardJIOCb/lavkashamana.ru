@@ -9,6 +9,10 @@ class PaymentGateway:
         raise NotImplementedError
     async def fetch(self, payment_id: str) -> dict:
         raise NotImplementedError
+    async def cancel(self, payment_id: str) -> dict:
+        raise NotImplementedError
+    async def refund(self, payment_id: str, amount: Decimal, idempotence_key: str | None = None) -> dict:
+        raise NotImplementedError
 
 class MockGateway(PaymentGateway):
     async def create(self, order_id: int, amount: Decimal, description: str, receipt: dict | None = None) -> dict:
@@ -16,6 +20,10 @@ class MockGateway(PaymentGateway):
         return {'id': pid, 'status': 'pending', 'confirmation_url': f'{settings.app_url}/api/payments/mock/{pid}/success?order_id={order_id}'}
     async def fetch(self, payment_id: str) -> dict:
         return {'id': payment_id, 'status': 'succeeded', 'paid': True}
+    async def cancel(self, payment_id: str) -> dict:
+        return {'id': payment_id, 'status': 'canceled'}
+    async def refund(self, payment_id: str, amount: Decimal, idempotence_key: str | None = None) -> dict:
+        return {'id': f'mock_refund_{payment_id}', 'status': 'succeeded'}
 
 class YooKassaGateway(PaymentGateway):
     base = 'https://api.yookassa.ru/v3'
@@ -45,6 +53,31 @@ class YooKassaGateway(PaymentGateway):
             r = await client.get(f'{self.base}/payments/{payment_id}')
             if r.status_code >= 400:
                 raise HTTPException(r.status_code, f'YooKassa: {r.text[:500]}')
+            return r.json()
+    async def cancel(self, payment_id: str) -> dict:
+        headers = {
+            'Idempotence-Key': str(uuid.uuid5(uuid.NAMESPACE_URL, f'lavka-cancel-{payment_id}')),
+            'Content-Type': 'application/json',
+        }
+        async with httpx.AsyncClient(timeout=25, auth=(settings.yookassa_shop_id, settings.yookassa_secret_key)) as client:
+            r = await client.post(f'{self.base}/payments/{payment_id}/cancel', json={}, headers=headers)
+            if r.status_code >= 400:
+                raise HTTPException(r.status_code, f'YooKassa: {r.text[:500]}')
+            return r.json()
+
+    async def refund(self, payment_id: str, amount: Decimal, idempotence_key: str | None = None) -> dict:
+        headers = {
+            'Idempotence-Key': idempotence_key or str(uuid.uuid5(uuid.NAMESPACE_URL, f'lavka-refund-{payment_id}')),
+            'Content-Type': 'application/json',
+        }
+        payload = {
+            'payment_id': payment_id,
+            'amount': {'value': f'{Decimal(amount):.2f}', 'currency': 'RUB'},
+        }
+        async with httpx.AsyncClient(timeout=25, auth=(settings.yookassa_shop_id, settings.yookassa_secret_key)) as client:
+            r = await client.post(f'{self.base}/refunds', json=payload, headers=headers)
+            if r.status_code >= 400:
+                raise HTTPException(r.status_code, f'YooKassa refund: {r.text[:500]}')
             return r.json()
 
 def get_gateway():

@@ -9,6 +9,10 @@ class Settings(BaseSettings):
 
     bot_token: str = ''
     bot_username: str = 'ShamanLavkaBot'
+    max_bot_token: str = ''
+    max_bot_username: str = 'id026509411367_bot'
+    max_channel_id: int = 0
+    telegram_source_channel_id: int = 0
     admin_telegram_username: str = 'shamanchik007'
     dev_auth: bool = True
 

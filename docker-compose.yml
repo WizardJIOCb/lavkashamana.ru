@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: shaman
       POSTGRES_USER: shaman
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: shaman
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,7 +17,7 @@ services:
     build: .
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://shaman:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/shaman
+      DATABASE_URL: postgresql+psycopg://shaman:shaman@db:5432/shaman
     ports:
       - "8000:8000"
     depends_on:
@@ -29,7 +29,7 @@ services:
     build: .
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://shaman:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/shaman
+      DATABASE_URL: postgresql+psycopg://shaman:shaman@db:5432/shaman
     command: ["python","-m","app.bot"]
     depends_on:
       db:

@@ -54,6 +54,7 @@ function lavkaDisplayName(p){
 }
 
 const tg = window.Telegram?.WebApp;
+const maxApp = window.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
 const DEV_USER = { id: 777000, username: 'shamanchik007' };
@@ -64,9 +65,24 @@ const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>
 
 function authHeaders(){
   const h={'Content-Type':'application/json'};
-  if (tg?.initData) h['X-Telegram-Init-Data']=tg.initData;
-  else { h['X-Dev-Telegram-Id']=String(DEV_USER.id); h['X-Dev-Username']=DEV_USER.username; }
-  const ref = new URLSearchParams(location.search).get('ref'); if(ref) h['X-Referrer-Telegram-Id']=ref;
+
+  if (tg?.initData) {
+    h['X-Telegram-Init-Data']=tg.initData;
+  } else if (maxApp?.initData) {
+    h['X-Max-Init-Data']=maxApp.initData;
+  } else {
+    h['X-Dev-Telegram-Id']=String(DEV_USER.id);
+    h['X-Dev-Username']=DEV_USER.username;
+  }
+
+  let ref = new URLSearchParams(location.search).get('ref');
+
+  if (!ref && maxApp?.initDataUnsafe?.start_param) {
+    const startParam=String(maxApp.initDataUnsafe.start_param);
+    if(startParam.startsWith('ref_')) ref=startParam.slice(4);
+  }
+
+  if(ref) h['X-Referrer-Telegram-Id']=ref;
   return h;
 }
 async function api(path, opts={}){
@@ -264,7 +280,7 @@ function shopView(){
           ? `<div class="grid">
               ${products.map(p => `
                 <article class="card">
-                  <img
+                  <img loading="lazy" decoding="async"
                     class="product-img"
                     src="${esc(p.image_url||'/logo.jpg')}"
                     onerror="this.src='/logo.jpg'">
@@ -307,7 +323,7 @@ function shopView(){
 function cartView(){
   const lines=cartLines(), total=lines.reduce((s,[p,q])=>s+p.price*q,0);
   if(!lines.length)return `<div class="panel empty"><h2>Корзина пустая</h2><p>Добавь товары из каталога.</p><button class="btn" data-go="shop">В каталог</button></div>`;
-  return `<section class="section"><div class="section-head"><h2>Корзина</h2><strong>${rub(total)}</strong></div><div class="panel">${lines.map(([p,q])=>`<div class="cart-line"><img src="${esc(p.image_url||'/logo.jpg')}"><div><strong>${esc(lavkaDisplayName(p))}</strong><div class="muted">${rub(p.price)} × ${q}</div></div><div class="qty"><button data-qty="${p.id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${p.id}" data-delta="1">+</button></div></div>`).join('')}</div></section>
+  return `<section class="section"><div class="section-head"><h2>Корзина</h2><strong>${rub(total)}</strong></div><div class="panel">${lines.map(([p,q])=>`<div class="cart-line"><img loading="lazy" decoding="async" src="${esc(p.image_url||'/logo.jpg')}"><div><strong>${esc(lavkaDisplayName(p))}</strong><div class="muted">${rub(p.price)} × ${q}</div></div><div class="qty"><button data-qty="${p.id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${p.id}" data-delta="1">+</button></div></div>`).join('')}</div></section>
   <section class="section"><div class="panel"><div class="section-head"><h2>Итого</h2><strong>${rub(total)}</strong></div><p class="muted">Доставка и внутренний баланс рассчитываются на оформлении.</p><button class="btn gold" id="checkoutBtn">Оформить заказ</button></div></section>`;
 }
 function profileView(){
@@ -492,6 +508,7 @@ async function saveLavkaProfile(){
 function adminView(){ if(!state.boot.me.is_admin)return '<div class="panel">Нет доступа</div>'; return `<section class="section"><div class="panel"><div class="eyebrow">УПРАВЛЕНИЕ</div><h2>Админка</h2><p class="muted">Товары и категории меняются без правки кода.</p><div class="admin-actions"><button class="btn gold" id="newProduct">+ Товар</button><button class="btn" id="newCategory">+ Категория</button><button class="btn secondary" id="reloadAdmin">Обновить</button></div></div></section><section class="section"><div class="section-head"><h2>Товары</h2></div><div class="admin-list">${state.boot.products.map(p=>`<div class="admin-row"><div><strong>${esc(lavkaDisplayName(p))}</strong><div class="muted">${rub(p.price)}</div></div><div class="admin-actions"><button class="btn secondary" data-edit-product="${p.id}">Править</button></div></div>`).join('')||'<div class="empty">Пока нет товаров</div>'}</div></section><section class="section"><div class="section-head"><h2>Категории</h2></div><div class="admin-list">${state.boot.categories.map(c=>`<div class="admin-row"><div><strong>${esc(c.name)}</strong><div class="muted">${esc(c.slug)}</div></div><div class="admin-actions">${categoryDepth(c)===1?`<button class="btn gold" data-edit-root-category="${c.id}">Название</button>`:''}<button class="btn secondary" data-edit-category="${c.id}">Править</button></div></div>`).join('')}</div></section><section class="section">
   <div class="admin-actions">
     <button class="btn secondary" id="adminOrders">Заказы покупателей</button>
+    <button class="btn gold" id="adminPromocodes">Промокоды</button>
     <button class="btn gold" id="adminFaq">FAQ</button>
   </div>
 </section>`; }
@@ -518,6 +535,7 @@ function bind(){
   document.querySelectorAll('[data-edit-category]').forEach(b=>b.onclick=()=>categoryModal(state.boot.categories.find(c=>c.id==b.dataset.editCategory)));
   document.querySelectorAll('[data-edit-root-category]').forEach(b=>b.onclick=()=>rootCategoryModal(state.boot.categories.find(c=>c.id==b.dataset.editRootCategory)));
   $('#adminOrders')&&($('#adminOrders').onclick=showAdminOrders);
+  $('#adminPromocodes')&&($('#adminPromocodes').onclick=showAdminPromocodes);
   $('#adminFaq')&&($('#adminFaq').onclick=openFaqEditor);
 }
 function modal(html){ const d=document.createElement('div'); d.className='modal'; d.innerHTML=`<div class="modal-card">${html}</div>`; d.onclick=e=>{if(e.target===d)d.remove()}; document.body.appendChild(d); return d; }
@@ -536,8 +554,8 @@ async function checkoutModal(){
     <div class="form">
 
       <div class="field">
-        <label>Имя</label>
-        <input id="coName" value="${esc(m.first_name||'')}">
+        <label>Фамилия Имя Отчество</label>
+        <input id="coName" value="${esc(m.full_name||'')}" placeholder="Иванов Иван Иванович">
       </div>
 
       <div class="field">
@@ -554,6 +572,11 @@ async function checkoutModal(){
         <div style="font-size:12px;opacity:.72;margin-top:6px">Электронная почта используется для направления кассового чека после оплаты заказа.</div>
       </div>
 
+      <div class="field">
+        <label>Промокод</label>
+        <input id="coPromo" placeholder="Если есть">
+        <div style="font-size:12px;opacity:.72;margin-top:6px">Скидка по промокоду применяется только к стоимости товаров и не суммируется с реферальной программой.</div>
+      </div>
       <div class="field">
         <label>Город доставки</label>
 
@@ -1013,6 +1036,7 @@ async function checkoutModal(){
         phone:$('#coPhone').value.trim(),
         email:$('#coEmail').value.trim(),
 
+        promo_code:($('#coPromo').value.trim().toUpperCase()||null),
         city_code:city?.code||null,
 
         city_name:
@@ -1036,8 +1060,11 @@ async function checkoutModal(){
         use_balance:Number($('#coBalance').value||0)
       };
 
-      if(!payload.customer_name||!payload.phone||!payload.email){
-        throw new Error('Заполни имя, телефон и email для кассового чека');
+      if(payload.customer_name.split(/\s+/).filter(Boolean).length < 3){
+        throw new Error('Укажи фамилию, имя и отчество полностью');
+      }
+      if(!payload.phone||!payload.email){
+        throw new Error('Заполни телефон и email для кассового чека');
       }
 
       if(
@@ -1641,6 +1668,66 @@ function categoryModal(c={}){
   };
 }
 
+
+async function showAdminPromocodes(){
+  try{
+    const rows=await api('/api/admin/promocodes');
+    const d=modal(`
+      <div class="section-head"><h2>Промокоды</h2><span class="badge">${rows.length}</span></div>
+      <div class="admin-actions" style="margin-bottom:12px"><button class="btn gold" id="newPromoCode">+ Промокод</button></div>
+      <div class="admin-list">
+        ${rows.map(p=>`<div class="admin-row">
+          <div><strong>${esc(p.code)}</strong><div class="muted">Скидка ${Number(p.percent)}% · использовано ${Number(p.used_count||0)}${Number(p.max_uses||0)>0?` из ${Number(p.max_uses)}`:' · безлимит'} · ${p.active?'включён':'выключен'}</div></div>
+          <div class="admin-actions"><button class="btn secondary" data-edit-promo="${p.id}">Править</button></div>
+        </div>`).join('')||'<div class="empty">Промокодов пока нет</div>'}
+      </div>`);
+    d.querySelector('#newPromoCode').onclick=()=>promoCodeModal();
+    d.querySelectorAll('[data-edit-promo]').forEach(b=>b.onclick=()=>promoCodeModal(rows.find(p=>Number(p.id)===Number(b.dataset.editPromo))));
+  }catch(e){toast(e.message)}
+}
+
+function promoCodeModal(p=null){
+  const d=modal(`
+    <div class="section-head"><h2>${p?'Промокод '+esc(p.code):'Новый промокод'}</h2></div>
+    <div class="field"><label>Код</label><input id="promoCodeValue" value="${esc(p?.code||'')}" placeholder="Например A174"></div>
+    <div class="field"><label>Скидка, %</label><input id="promoPercent" type="number" min="0" max="10" step="0.01" value="${p?.percent??''}"></div>
+    <div class="field"><label>Лимит успешных оплат</label><input id="promoMaxUses" type="number" min="0" step="1" value="${p?.max_uses??0}"><div class="muted">0 = безлимит</div></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:12px 0"><input id="promoActive" type="checkbox" ${p?.active===false?'':'checked'}> Активен</label>
+    <div class="admin-actions">
+      <button class="btn gold" id="savePromoCode">Сохранить</button>
+      ${p?'<button class="btn secondary" id="deletePromoCode">Удалить</button>':''}
+    </div>`);
+  d.querySelector('#savePromoCode').onclick=async()=>{
+    try{
+      const code=d.querySelector('#promoCodeValue').value.trim().toUpperCase();
+      const percent=Number(d.querySelector('#promoPercent').value);
+      const max_uses=Number(d.querySelector('#promoMaxUses').value);
+      const active=d.querySelector('#promoActive').checked;
+      if(!code) throw new Error('Укажи промокод');
+      if(!Number.isFinite(percent)||percent<0||percent>10) throw new Error('Скидка должна быть от 0 до 10%');
+      if(!Number.isInteger(max_uses)||max_uses<0) throw new Error('Лимит должен быть целым числом от 0');
+      await api(p?`/api/admin/promocodes/${p.id}`:'/api/admin/promocodes',{
+        method:p?'PUT':'POST',
+        body:JSON.stringify({code,percent,max_uses,active})
+      });
+      d.remove();
+      toast('Промокод сохранён');
+      showAdminPromocodes();
+    }catch(e){toast(e.message)}
+  };
+  if(p){
+    d.querySelector('#deletePromoCode').onclick=async()=>{
+      if(!confirm(`Удалить промокод ${p.code}?`)) return;
+      try{
+        await api(`/api/admin/promocodes/${p.id}`,{method:'DELETE'});
+        d.remove();
+        toast('Промокод удалён');
+        showAdminPromocodes();
+      }catch(e){toast(e.message)}
+    };
+  }
+}
+
 async function showAdminOrders(){ try{const rows=await api('/api/admin/orders'); modal(`<div class="section-head"><h2>Заказы</h2><span class="badge">${rows.length}</span></div><div class="admin-list">${rows.map(o=>`<div class="admin-row"><div><strong>№${o.id} · ${rub(o.total)}</strong><div class="muted">${esc(o.customer_name||'')} · ${esc(o.phone||'')}<br>${esc(o.city_name||'')} ${esc(o.address||'')}</div></div><span class="badge">${esc(o.status)}</span></div>`).join('')||'<div class="empty">Нет заказов</div>'}</div>`);}catch(e){toast(e.message)} }
 
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render()});
@@ -1660,7 +1747,8 @@ const INFO_DEFAULTS = {
   info_payment:
     'Доступные способы оплаты указываются при оформлении заказа. Используйте только способы оплаты, указанные непосредственно внутри Лавки Шамана.',
 
-  info_referral: 'Приглашайте друзей в Лавку Шамана по своей персональной ссылке. За каждого приглашённого пользователя, совершившего хотя бы одну оплаченную покупку, ваша ставка увеличивается на 0,5%. Максимальная ставка - 10%. Начисление идёт с каждой оплаченной покупки приглашённого. В расчёт входит только стоимость товаров после использования скидок и внутреннего баланса. Стоимость доставки СДЭК в реферальную базу не входит.',
+  info_referral: "Приглашайте друзей в Лавку Шамана по своей персональной ссылке. За каждого приглашённого пользователя, совершившего хотя бы одну оплаченную покупку, ваша ставка увеличивается на 0,5 процентного пункта. Максимальная ставка - 10%. Начисление идёт с каждой оплаченной покупки приглашённого. В расчёт входит только фактическая стоимость товаров после использования внутреннего баланса. Стоимость доставки в реферальную базу не входит. Если при оформлении заказа применён промокод, реферальное начисление по этому заказу не производится.",
+  info_promo: "Промокоды \"Лавки Шамана\" можно получить у наших партнёров, в специальных публикациях и предложениях Лавки.\n\nПромокод даёт скидку на товары в заказе. Размер скидки зависит от конкретного промокода. Скидка не распространяется на стоимость доставки.\n\nПромокод и реферальная программа не суммируются в одном заказе. Если при оформлении заказа используется промокод, реферальное начисление по этому заказу не производится.\n\nДля применения промокода введите его при оформлении заказа до перехода к оплате.",
 
   info_returns:
     'Если заказ ещё не передан в доставку, свяжитесь с поддержкой как можно быстрее. Возможность возврата зависит от категории товара и состояния заказа.',
@@ -1673,7 +1761,7 @@ const INFO_DEFAULTS = {
 
   info_privacy: 'Настоящая Политика определяет порядок обработки и защиты персональных данных пользователей интернет-магазина "Лавка Шамана", сайта lavkashamana.ru и Telegram Mini App.\n\nОператор персональных данных: ИП Шилова Лилия Азатовна.\n\nПерсональные данные могут использоваться для работы Mini App, оформления и исполнения заказов, проведения оплаты, организации доставки, связи с покупателем и выполнения требований законодательства.\n\nДля исполнения заказа необходимые данные могут передаваться СДЭК, ЮKassa, техническим сервисам и государственным органам в случаях, предусмотренных законодательством.\n\nПерсональные данные не продаются и не передаются посторонним лицам для целей, не связанных с работой "Лавки Шамана".\n\nПо вопросам обработки персональных данных можно обратиться в Telegram: @Shamanchik007.',
 
-  info_consent: 'Я добровольно даю согласие ИП Шиловой Лилии Азатовне на обработку моих персональных данных, которые я предоставляю при использовании "Лавки Шамана", оформлении и оплате заказа.\n\nСогласие распространяется на имя, контактные данные, Telegram ID, сведения о заказе, адрес или выбранный пункт выдачи и другие данные, необходимые для исполнения заказа.\n\nЯ согласен с передачей необходимых данных СДЭК для доставки и ЮKassa для проведения оплаты.\n\nЯ подтверждаю, что ознакомлен с Политикой обработки персональных данных "Лавки Шамана".\n\nСогласие действует до достижения целей обработки либо до его отзыва в случаях, предусмотренных законодательством.',
+  info_consent: 'Я добровольно даю согласие ИП Шиловой Лилии Азатовне на обработку моих персональных данных, которые я предоставляю при использовании "Лавки Шамана", оформлении и оплате заказа.\n\nСогласие распространяется на ФИО, контактные данные, Telegram ID, сведения о заказе, адрес или выбранный пункт выдачи и другие данные, необходимые для исполнения заказа.\n\nЯ согласен с передачей необходимых данных СДЭК для доставки и ЮKassa для проведения оплаты.\n\nЯ подтверждаю, что ознакомлен с Политикой обработки персональных данных "Лавки Шамана".\n\nСогласие действует до достижения целей обработки либо до его отзыва в случаях, предусмотренных законодательством.',
 
   info_offer: 'Публичная оферта интернет-магазина "Лавка Шамана".\n\nПродавец: ИП Шилова Лилия Азатовна.\nИНН: 026509411367.\nОГРНИП: 326028000090111.\n\nНастоящий документ определяет условия дистанционной продажи товаров через интернет-магазин "Лавка Шамана", сайт lavkashamana.ru и Telegram Mini App.\n\nПокупатель самостоятельно выбирает товар, знакомится с его описанием, стоимостью и условиями приобретения.\n\nОплата заказов осуществляется через ЮKassa.\n\nДоставка осуществляется службой СДЭК до пункта выдачи либо курьером. Стоимость доставки оплачивается покупателем и рассчитывается при оформлении заказа.\n\nУсловия отмены и возврата указаны в отдельном разделе "Возврат и отмена заказа".\n\nОбработка персональных данных осуществляется в соответствии с Политикой обработки персональных данных и Согласием на обработку персональных данных.\n\nПо вопросам заказов и работы магазина: Telegram @Shamanchik007.\n\nАктуальная версия настоящей оферты размещается в разделе "Информация" "Лавки Шамана".'
 };
@@ -1711,6 +1799,10 @@ function renderInfoPage(data = {}) {
       <details class="info-item">
         <summary>Реферальная программа</summary>
         <div class="info-text">${v("info_referral")}</div>
+      </details>
+      <details class="info-item">
+        <summary>Промокоды</summary>
+        <div class="info-text">${v('info_promo')}</div>
       </details>
 
       <details class="info-item">
@@ -1802,6 +1894,10 @@ async function openInfoEditor() {
           <div class="field">
             <label>Реферальная программа</label>
             <textarea data-info="info_referral" style="min-height:180px">${esc(val("info_referral"))}</textarea>
+          </div>
+          <div class="field">
+            <label>Промокоды</label>
+            <textarea data-info="info_promo" style="min-height:180px">${esc(val('info_promo'))}</textarea>
           </div>
 
           <div class="field">
@@ -2850,45 +2946,19 @@ render = function(){
 
 
 /* LAVKA_ADMIN_SALES_UI_V1_START */
-
 function lavkaOrderStatus(status){
   const s = String(status || '').toLowerCase();
-
   if(s === 'paid'){
-    return {
-      key:'paid',
-      text:'Оплачен',
-      cls:'lavka-status-paid'
-    };
+    return {key:'paid',text:'Оплачен',cls:'lavka-status-paid'};
   }
-
-  if(
-    s === 'cancelled' ||
-    s === 'canceled'
-  ){
+  if(s === 'cancelled' || s === 'canceled' || s === 'cancelled_refunded' || s === 'failed' || s === 'payment_failed'){
     return {
       key:'cancelled',
-      text:'Отменён',
+      text:(s === 'failed' || s === 'payment_failed') ? 'Ошибка оплаты' : 'Отменён',
       cls:'lavka-status-cancelled'
     };
   }
-
-  if(
-    s === 'failed' ||
-    s === 'payment_failed'
-  ){
-    return {
-      key:'cancelled',
-      text:'Ошибка оплаты',
-      cls:'lavka-status-cancelled'
-    };
-  }
-
-  return {
-    key:'pending',
-    text:'Ожидает оплаты',
-    cls:'lavka-status-pending'
-  };
+  return {key:'pending',text:'Ожидает оплаты',cls:'lavka-status-pending'};
 }
 
 showAdminOrders = async function(){
@@ -2896,145 +2966,114 @@ showAdminOrders = async function(){
     const data = await api('/api/admin/sales-overview');
     const rows = Array.isArray(data.orders) ? data.orders : [];
     const stats = data.stats || {};
-
     const d = modal(`
       <div class="section-head">
         <h2>Продажи и заказы</h2>
-        <button class="btn secondary" id="closeSales">
-          Закрыть
-        </button>
+        <button class="btn secondary" id="closeSales">Закрыть</button>
       </div>
-
       <div class="lavka-sales-grid">
-
-        <div class="lavka-sales-stat">
-          <strong>${Number(stats.customers || 0)}</strong>
-          <span>Покупателей</span>
-        </div>
-
-        <div class="lavka-sales-stat">
-          <strong>${Number(stats.paid_orders || 0)}</strong>
-          <span>Оплачено</span>
-        </div>
-
-        <div class="lavka-sales-stat">
-          <strong>${rub(stats.sales_total || 0)}</strong>
-          <span>Продажи</span>
-        </div>
-
-        <div class="lavka-sales-stat">
-          <strong>${Number(stats.all_orders || 0)}</strong>
-          <span>Всего создано</span>
-        </div>
-
+        <div class="lavka-sales-stat"><strong>${Number(stats.customers || 0)}</strong><span>Покупателей</span></div>
+        <div class="lavka-sales-stat"><strong>${Number(stats.paid_orders || 0)}</strong><span>Оплачено</span></div>
+        <div class="lavka-sales-stat"><strong>${rub(stats.sales_total || 0)}</strong><span>Продажи</span></div>
+        <div class="lavka-sales-stat"><strong>${Number(stats.all_orders || 0)}</strong><span>Всего создано</span></div>
       </div>
-
       <div class="muted lavka-sales-note">
         В покупатели, оплаченные заказы и сумму продаж входят только реально оплаченные заказы.
-        Доставка СДЭК в сумму продаж не включается.
+        Доставка в сумму продаж не включается.
       </div>
-
       <div class="pill-row lavka-order-filters">
-        <button class="pill active" data-order-filter="all">
-          Все
-        </button>
-
-        <button class="pill" data-order-filter="paid">
-          Оплаченные
-        </button>
-
-        <button class="pill" data-order-filter="pending">
-          Ожидают оплаты
-        </button>
-
-        <button class="pill" data-order-filter="cancelled">
-          Отменённые
-        </button>
+        <button class="pill active" data-order-filter="all">Все</button>
+        <button class="pill" data-order-filter="paid">Оплаченные</button>
+        <button class="pill" data-order-filter="pending">Ожидают оплаты</button>
+        <button class="pill" data-order-filter="cancelled">Отменённые</button>
       </div>
-
       <div id="lavkaAdminOrdersList" class="admin-list"></div>
     `);
 
     const list = d.querySelector('#lavkaAdminOrdersList');
+    let currentFilter = 'all';
 
-    function draw(filter='all'){
+    function draw(filter=currentFilter){
+      currentFilter = filter;
       const filtered = rows.filter(o => {
         const st = lavkaOrderStatus(o.status);
         return filter === 'all' || st.key === filter;
       });
 
-      list.innerHTML = filtered.length
-        ? filtered.map(o => {
-            const st = lavkaOrderStatus(o.status);
+      list.innerHTML = filtered.length ? filtered.map(o => {
+        const st = lavkaOrderStatus(o.status);
+        const place = [o.city_name || '', o.address || ''].filter(Boolean).join(' · ');
+        const actions = st.key === 'paid' ? '' : `
+          <div class="admin-actions" style="margin-top:10px">
+            ${st.key === 'pending' ? `
+              <button class="btn gold" data-order-action="paid" data-order-id="${o.id}">Оплачен</button>
+              <button class="btn secondary" data-order-action="cancelled" data-order-id="${o.id}">Отменить</button>
+            ` : ''}
+            <button class="btn secondary" data-order-action="delete" data-order-id="${o.id}">Удалить</button>
+          </div>`;
 
-            const place = [
-              o.city_name || '',
-              o.address || ''
-            ].filter(Boolean).join(' · ');
-
-            return `
-              <div class="lavka-order-card">
-
-                <div class="lavka-order-top">
-                  <div>
-                    <strong>Заказ №${o.id}</strong>
-                    <div class="lavka-order-sum">
-                      ${rub(o.total)}
-                    </div>
-                  </div>
-
-                  <span class="badge ${st.cls}">
-                    ${esc(st.text)}
-                  </span>
-                </div>
-
-                <div class="lavka-order-customer">
-                  ${esc(o.customer_name || 'Без имени')}
-                </div>
-
-                <div class="muted">
-                  ${esc(o.phone || '')}
-                  ${o.email ? `<br>${esc(o.email)}` : ''}
-                  ${place ? `<br>${esc(place)}` : ''}
-                </div>
-
-                <div class="lavka-order-money">
-                  Товары: ${rub(o.items_total || 0)}
-                  ${Number(o.balance_used || 0) > 0
-                    ? ` · баланс: −${rub(o.balance_used)}`
-                    : ''
-                  }
-                  ${Number(o.delivery_total || 0) > 0
-                    ? `<br>Доставка: ${rub(o.delivery_total)}`
-                    : ''
-                  }
-                </div>
-
+        return `
+          <div class="lavka-order-card">
+            <div class="lavka-order-top">
+              <div>
+                <strong>Заказ №${o.id}</strong>
+                <div class="lavka-order-sum">${rub(o.total)}</div>
               </div>
-            `;
-          }).join('')
-        : '<div class="empty">Здесь пока нет заказов.</div>';
+              <span class="badge ${st.cls}">${esc(st.text)}</span>
+            </div>
+            <div class="lavka-order-customer">${esc(o.customer_name || 'Без имени')}</div>
+            <div class="muted">
+              ${esc(o.phone || '')}
+              ${o.email ? `<br>${esc(o.email)}` : ''}
+              ${place ? `<br>${esc(place)}` : ''}
+            </div>
+            <div class="lavka-order-money">
+              Товары: ${rub(o.items_total || 0)}
+              ${Number(o.promo_discount || 0) > 0 ? ` · промокод: −${rub(o.promo_discount)}` : ''}
+              ${Number(o.balance_used || 0) > 0 ? ` · баланс: −${rub(o.balance_used)}` : ''}
+              ${Number(o.delivery_total || 0) > 0 ? `<br>Доставка: ${rub(o.delivery_total)}` : ''}
+            </div>
+            ${actions}
+          </div>`;
+      }).join('') : '<div class="empty">Здесь пока нет заказов.</div>';
+
+      list.querySelectorAll('[data-order-action]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = Number(btn.dataset.orderId);
+          const action = btn.dataset.orderAction;
+          try{
+            if(action === 'paid'){
+              if(!confirm(`Отметить заказ №${id} оплаченным?`)) return;
+              await api(`/api/admin/orders/${id}/status?status=paid`,{method:'PATCH'});
+            }else if(action === 'cancelled'){
+              if(!confirm(`Отменить заказ №${id}? Использованный внутренний баланс будет возвращён покупателю.`)) return;
+              await api(`/api/admin/orders/${id}/status?status=cancelled`,{method:'PATCH'});
+            }else if(action === 'delete'){
+              if(!confirm(` Удалить заказ №${id}? Это действие нельзя отменить.`)) return;
+              await api(`/api/admin/orders/${id}`,{method:'DELETE'});
+            }
+            d.remove();
+            toast(action === 'delete' ? 'Заказ удалён' : 'Статус заказа обновлён');
+            showAdminOrders();
+          }catch(e){
+            toast(e.message);
+          }
+        };
+      });
     }
 
     draw('all');
-
     d.querySelector('#closeSales').onclick = () => d.remove();
-
     d.querySelectorAll('[data-order-filter]').forEach(btn => {
       btn.onclick = () => {
-        d.querySelectorAll('[data-order-filter]').forEach(x =>
-          x.classList.toggle('active', x === btn)
-        );
-
+        d.querySelectorAll('[data-order-filter]').forEach(x => x.classList.toggle('active', x === btn));
         draw(btn.dataset.orderFilter);
       };
     });
-
   }catch(e){
     toast(e.message);
   }
 };
-
 /* LAVKA_ADMIN_SALES_UI_V1_END */
 
 
@@ -3090,7 +3129,7 @@ async function lavkaLoadProductDocuments(){
               data-doc-image="${esc(url)}"
               data-doc-title="${esc(d.title)}">
 
-              <img
+              <img loading="lazy" decoding="async"
                 class="lavka-doc-thumb"
                 src="${esc(url)}"
                 alt="${esc(d.title)}">
@@ -3121,7 +3160,7 @@ async function lavkaLoadProductDocuments(){
             </button>
           </div>
 
-          <img
+          <img loading="lazy" decoding="async"
             src="${esc(url)}"
             alt="${esc(title)}"
             style="
@@ -3207,7 +3246,7 @@ function lavkaOpenProductDetailsV2(productId){
         </button>
       </div>
 
-      <img
+      <img loading="lazy" decoding="async"
         id="detailV2Image"
         class="detail-v2-image"
         src="/logo.jpg">
