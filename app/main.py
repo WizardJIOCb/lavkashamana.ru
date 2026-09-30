@@ -1203,7 +1203,7 @@ def public_info(db: Session = Depends(get_db)):
 # LAVKA_ADMIN_SALES_V1_START
 
 @app.get('/api/admin/sales-overview')
-def admin_sales_overview(
+async def admin_sales_overview(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
