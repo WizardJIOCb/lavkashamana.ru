@@ -2886,7 +2886,9 @@ function lv4group(){
   return 'vg_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
 }
 
-productModal = function(p={}){
+productModal = async function(p={}){
+  let packingConfig;
+  try{ packingConfig=await api("/api/admin/packing"); }catch(e){ toast(e.message); return; }
 
   const pm=p.id?lv4meta(p):null;
   const group=pm?.group||lv4group();
@@ -2943,6 +2945,13 @@ productModal = function(p={}){
                  value="${item.price??0}">
         </div>
 
+        <div class="notice">Размеры одной единицы с учётом сжатой защитной плёнки. Вес — с тарой и индивидуальной плёнкой.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${[['vWeight','Вес 1 шт., г','weight_g'],['vLength','Длина, см','length_cm'],['vWidth','Ширина, см','width_cm'],['vHeight','Высота, см','height_cm']].map(([cls,label,key])=>`
+            <div class="field"><label>${label}</label><input class="${cls}" type="number" min="1" step="1" value="${item.shipping_ready ? (item[key]??'') : ''}" placeholder="Укажи вручную"></div>
+          `).join('')}
+        </div>
+        <label style="display:flex;align-items:center;gap:8px"><input class="vRotate" type="checkbox" ${item.allow_rotation!==false?'checked':''}>Можно поворачивать и класть набок</label>
         <button type="button"
                 class="btn secondary lv4remove">
           Удалить вариант
@@ -3041,6 +3050,13 @@ productModal = function(p={}){
         ${existing.length ? existing.map(row).join('') : row()}
       </div>
 
+      <details style="margin:12px 0">
+        <summary>Упаковка — общие настройки</summary>
+        <div class="notice">Заполни один раз. Плёнка между товарами включена в параметры фасовки; дополнительный зазор не прибавляется.</div>
+        <div class="field"><label>Толщина стенки картона, мм</label><input id="packWall" type="number" min="0" max="20" step="1" value="${packingConfig.wall_mm}"></div>
+        ${['30 × 10 × 10','30 × 20 × 10','30 × 20 × 20'].map((size,i)=>`<div class="field"><label>Вес пустой коробки ${size}, г</label><input class="packBoxWeight" type="number" min="0" step="1" value="${packingConfig.box_weights_g[i]??''}" placeholder="Взвесь пустую коробку"></div>`).join('')}
+        <div class="field"><label>Скотч и внешняя плёнка на одну коробку, г</label><input id="packTape" type="number" min="0" step="1" value="${packingConfig.tape_g??''}" placeholder="Укажи вес"></div>
+      </details>
       <button class="btn gold" id="saveP">
         Сохранить
       </button>
@@ -3125,6 +3141,26 @@ productModal = function(p={}){
       const image_url=$('#pImg').value.trim();
 
       const rows=[...d.querySelectorAll('.lv4row')];
+      const shippingNumber=(row,cls)=>{
+        const value=Number(row.querySelector('.'+cls).value);
+        if(!Number.isSafeInteger(value) || value<=0) throw new Error('Укажи целые положительные размеры и вес у каждой фасовки');
+        return value;
+      };
+      for(const row of rows){
+        for(const cls of ['vWeight','vLength','vWidth','vHeight']) shippingNumber(row,cls);
+        const a=Number(row.querySelector('.lv4amount').value);
+        const price=Number(row.querySelector('.lv4price').value);
+        if(!Number.isFinite(a)||a<=0) throw new Error('Укажи количество');
+        if(!Number.isFinite(price)||price<0) throw new Error('Укажи корректную цену');
+      }
+      const packNumber=(input,max,nullable=false)=>{
+        if(nullable && input.value.trim()==='') return null;
+        const n=Number(input.value);
+        if(!Number.isSafeInteger(n)||n<0||n>max) throw new Error('Проверь настройки упаковки');
+        return n;
+      };
+      const packConfig={wall_mm:packNumber(d.querySelector('#packWall'),20),tape_g:packNumber(d.querySelector('#packTape'),10000,true),box_weights_g:[...d.querySelectorAll('.packBoxWeight')].map(x=>packNumber(x,10000,true))};
+      await api('/api/admin/packing',{method:'PUT',body:JSON.stringify(packConfig)});
       const kept=[];
 
       for(const r of rows){
@@ -3167,17 +3203,12 @@ productModal = function(p={}){
 
           image_url,
 
-          weight_g:
-            unit==='g'
-              ? Math.max(1,Math.round(amount))
-              : unit==='ml'
-                ? Math.max(1,Math.round(amount))
-                : Number(old?.weight_g||200),
-
-          length_cm:Number(old?.length_cm||15),
-          width_cm:Number(old?.width_cm||20),
-          height_cm:Number(old?.height_cm||10),
-
+          weight_g:shippingNumber(r,'vWeight'),
+          length_cm:shippingNumber(r,'vLength'),
+          width_cm:shippingNumber(r,'vWidth'),
+          height_cm:shippingNumber(r,'vHeight'),
+          shipping_ready:true,
+          allow_rotation:r.querySelector('.vRotate').checked,
           active:true
         };
 
