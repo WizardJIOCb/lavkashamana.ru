@@ -55,7 +55,7 @@ function lavkaDisplayName(p){
 
 const tg = window.Telegram?.WebApp;
 const maxApp = window.WebApp;
-if (tg) { try{ tg.ready?.(); tg.expand?.(); }catch(e){ console.warn('TG_INIT',e); } }
+if (tg) { try{ tg.ready?.(); if (!document.documentElement.classList.contains("lavka-desktop")) tg.expand?.(); }catch(e){ console.warn('TG_INIT',e); } }
 
 const DEV_USER = { id: 777000, username: 'shamanchik007' };
 let lavkaInitialCart={};
