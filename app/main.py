@@ -1,3 +1,4 @@
+from .services import packing  # LAVKA_PACKING_V1
 import re
 from datetime import datetime
 from decimal import Decimal
@@ -11,10 +12,11 @@ from sqlalchemy import func
 from .config import settings
 from .db import Base, engine, get_db
 from .models import User, Category, Product, Order, OrderItem, ReferralCredit, Setting, PromoCode
-from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, SettingsPatch, PromoCodeIn
+from .schemas import CategoryIn, ProductIn, QuoteIn, OrderIn, CartItemIn, SettingsPatch, PromoCodeIn
 from .services.telegram import get_current_user, require_admin
 from .services.referrals import active_referrals_count, referral_rate, credit_referrer_for_paid_order
 from .services.cdek import cdek
+from .services.pochta import pochta
 from .services.payments import get_gateway
 
 Base.metadata.create_all(engine)
@@ -40,6 +42,8 @@ def user_json(db, u: User):
         'city_name': u.city_name,
         'delivery_type': u.delivery_type,
         'delivery_point': u.delivery_point,
+        'delivery_provider': u.delivery_provider,
+        'postal_code': u.postal_code,
         'address': u.address,
         'is_admin': u.is_admin,
         'balance': money(u.balance),
@@ -57,6 +61,7 @@ def category_json(c):
 
 def product_json(p):
     return {
+        **packing.product_meta(p),
         'id': p.id, 'category_id': p.category_id, 'name': p.name, 'description': p.description,
         'price': money(p.price), 'stock': p.stock, 'image_url': p.image_url,
         'weight_g': p.weight_g, 'length_cm': p.length_cm, 'width_cm': p.width_cm,
@@ -71,6 +76,8 @@ def update_profile(body: dict, user: User = Depends(get_current_user), db: Sessi
         'city_name',
         'delivery_type',
         'delivery_point',
+        'delivery_provider',
+        'postal_code',
         'address',
     }
 
@@ -102,7 +109,11 @@ def bootstrap(user: User = Depends(get_current_user), db: Session = Depends(get_
         'categories': [category_json(c) for c in cats],
         'products': [product_json(p) for p in products],
         'orders': [{'id': o.id, 'status': o.status, 'total': money(o.total), 'created_at': o.created_at.isoformat()} for o in orders],
-        'integrations': {'cdek': cdek.configured, 'payment_provider': settings.payment_provider},
+        'integrations': {
+            'cdek': cdek.configured,
+            'pochta': pochta.configured,
+            'payment_provider': settings.payment_provider,
+        },
     }
 
 @app.get('/api/referrals')
@@ -217,6 +228,70 @@ async def cdek_cities(
 async def cdek_pvz(city_code: int, user: User = Depends(get_current_user)):
     return await cdek.delivery_points(city_code)
 
+@app.get('/api/pochta/postoffice/{postal_code}')
+async def pochta_postoffice(
+    postal_code: str,
+    user: User = Depends(get_current_user),
+):
+    row = await pochta.postoffice_by_index(postal_code)
+    return {
+        'postal_code': row.get('postal-code'),
+        'region': row.get('region'),
+        'settlement': row.get('settlement'),
+        'address': row.get('address-source'),
+        'latitude': row.get('latitude'),
+        'longitude': row.get('longitude'),
+        'is_closed': bool(
+            row.get('is-closed')
+            or row.get('is-temporary-closed')
+        ),
+    }
+
+
+
+@app.get('/api/pochta/postoffices')
+async def pochta_postoffices(
+    q: str,
+    user: User = Depends(get_current_user),
+):
+    q = (q or '').strip()
+
+    if len(q) < 3:
+        return []
+
+    rows = await pochta.postoffices_by_address(q, 10)
+
+    if isinstance(rows, dict):
+        rows = (
+            rows.get('postoffices')
+            or rows.get('offices')
+            or rows.get('data')
+            or ([rows] if rows.get('postal-code') else [])
+        )
+
+    result = []
+
+    for row in rows if isinstance(rows, list) else []:
+        code = str(row.get('postal-code') or '').strip()
+
+        if not code:
+            continue
+
+        result.append({
+            'postal_code': code,
+            'region': row.get('region'),
+            'settlement': row.get('settlement'),
+            'address': row.get('address-source'),
+            'latitude': row.get('latitude'),
+            'longitude': row.get('longitude'),
+            'is_closed': bool(
+                row.get('is-closed')
+                or row.get('is-temporary-closed')
+            ),
+        })
+
+    return result[:10]
+
 
 def cart_products(db: Session, items):
     ids = [i.product_id for i in items]
@@ -231,17 +306,162 @@ def cart_products(db: Session, items):
         lines.append((p, item.qty))
     return lines
 
+
+POCHTA_SENDER_INDEX = '452614'
+
+
+async def _pochta_delivery_quote(
+    lines,
+    postal_code: str,
+    delivery_type: str,
+    db,
+    packing_plan=None,
+):
+    code = ''.join(
+        ch for ch in str(postal_code or '')
+        if ch.isdigit()
+    )
+
+    if len(code) != 6:
+        raise HTTPException(
+            400,
+            'Индекс должен содержать 6 цифр'
+        )
+
+    mode = (delivery_type or '').strip().lower()
+
+    if mode not in {
+        'pickup',
+        'poste_restante',
+        'courier',
+    }:
+        raise HTTPException(
+            400,
+            'Неизвестный способ доставки Почты России'
+        )
+
+    office = await pochta.postoffice_by_index(code)
+
+    if (
+        office.get('is-closed')
+        or office.get('is-temporary-closed')
+    ):
+        raise HTTPException(
+            400,
+            'Выбранное отделение Почты России закрыто'
+        )
+
+    packing_plan = packing_plan or packing.plan_for(db, lines)
+    mass = packing_plan["package"]["weight"]
+    mail_type = (
+        'EMS'
+        if mode == 'courier'
+        else 'POSTAL_PARCEL'
+    )
+
+    result = await pochta.tariff({
+        'index-from': POCHTA_SENDER_INDEX,
+        'index-to': code,
+        'mail-category': 'ORDINARY',
+        'mail-type': mail_type,
+        'mass': mass,
+        'dimension': {k: packing_plan["package"][k] for k in ("length", "width", "height")},
+    })
+
+    rate = result.get('total-rate')
+
+    if rate is None or int(rate) <= 0:
+        raise HTTPException(
+            502,
+            'Не удалось рассчитать стоимость Почты России'
+        )
+
+    price = (
+        Decimal(str(rate))
+        / Decimal('100')
+    ).quantize(Decimal('0.01'))
+
+    delivery_time = result.get('delivery-time') or {}
+
+    return {
+        'postal_code': code,
+        'delivery_type': mode,
+        'mail_type': mail_type,
+        'price': price,
+        'period_min': delivery_time.get('min-days'),
+        'period_max': delivery_time.get('max-days'),
+        'office': office,
+        'packing': packing_plan,
+    }
+
+
+@app.post('/api/pochta/quote')
+async def pochta_quote(
+    body: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw_items = body.get('items') or []
+
+    if not isinstance(raw_items, list) or not raw_items:
+        raise HTTPException(400, 'Корзина пуста')
+
+    try:
+        items = [
+            CartItemIn(
+                product_id=int(x.get('product_id')),
+                qty=int(x.get('qty')),
+            )
+            for x in raw_items
+        ]
+    except Exception:
+        raise HTTPException(
+            400,
+            'Некорректные товары в корзине'
+        )
+
+    lines = cart_products(db, items)
+
+    result = await _pochta_delivery_quote(
+        lines,
+        body.get('postal_code'),
+        body.get('delivery_type') or 'pickup',
+        db=db,
+    )
+
+    office = result['office']
+
+    return {
+        'postal_code': result['postal_code'],
+        'delivery_type': result['delivery_type'],
+        'mail_type': result['mail_type'],
+        'price': money(result['price']),
+        'packing': result['packing'],
+        'period_min': result['period_min'],
+        'period_max': result['period_max'],
+        'office': {
+            'postal_code': office.get('postal-code'),
+            'region': office.get('region'),
+            'settlement': office.get('settlement'),
+            'address': office.get('address-source'),
+        },
+    }
+
+
 @app.post('/api/cdek/quote')
 async def cdek_quote(body: QuoteIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     lines = cart_products(db, body.items)
-    packages = []
-    for p, qty in lines:
-        packages.append({'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm})
-    return await cdek.tariff_list(body.to_city_code, packages, body.delivery_point)
+    plan = packing.plan_for(db, lines)
+    packages = packing.cdek_packages(plan)
+    result = await cdek.tariff_list(body.to_city_code, packages, body.delivery_point)
+    if isinstance(result, dict):
+        result["packing"] = plan
+    return result
 
 @app.post('/api/orders')
 async def create_order(body: OrderIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     lines = cart_products(db, body.items)
+    packing_plan = packing.plan_for(db, lines)
     email = (body.email or '').strip().lower()
     if '@' not in email or '.' not in email.rsplit('@', 1)[-1]:
         raise HTTPException(400, 'Укажите корректный email для кассового чека')
@@ -265,40 +485,205 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
     available = Decimal(user.balance or 0)
     balance_used = min(requested_balance, available, discounted_items_total)
     delivery_total = Decimal(str(body.delivery_total)).quantize(Decimal('0.01'))
-    # Never trust a delivery price sent by the browser when CDEK is connected.
-    if cdek.configured:
-        if not body.city_code or not body.delivery_tariff_code:
-            raise HTTPException(400, 'Выберите город и тариф СДЭК')
-        packages = [{'weight': p.weight_g * qty, 'length': p.length_cm, 'width': p.width_cm, 'height': p.height_cm} for p, qty in lines]
-        quote = await cdek.tariff_list(body.city_code, packages, body.delivery_point)
-        tariffs = quote.get('tariff_codes', []) if isinstance(quote, dict) else []
-        expected_mode = 4 if body.delivery_type == 'pickup' else 3 if body.delivery_type == 'courier' else None
+
+    provider = (
+        body.delivery_provider
+        or 'cdek'
+    ).strip().lower()
+
+    if provider not in {'cdek', 'pochta'}:
+        raise HTTPException(
+            400,
+            'Неизвестная служба доставки'
+        )
+
+    postal_code = (
+        ''.join(
+            ch for ch in str(body.postal_code or '')
+            if ch.isdigit()
+        )
+        or None
+    )
+
+    order_delivery_point = body.delivery_point
+    order_city_name = body.city_name
+    order_address = body.address
+
+    # Стоимость доставки всегда пересчитывает сервер.
+    if provider == 'cdek':
+        if not cdek.configured:
+            raise HTTPException(
+                503,
+                'СДЭК пока не подключён'
+            )
+
+        if (
+            not body.city_code
+            or not body.delivery_tariff_code
+        ):
+            raise HTTPException(
+                400,
+                'Выберите город и тариф СДЭК'
+            )
+
+        packages = packing.cdek_packages(packing_plan)
+
+        quote = await cdek.tariff_list(
+            body.city_code,
+            packages,
+            body.delivery_point,
+        )
+
+        tariffs = (
+            quote.get('tariff_codes', [])
+            if isinstance(quote, dict)
+            else []
+        )
+
+        expected_mode = (
+            4 if body.delivery_type == 'pickup'
+            else 3 if body.delivery_type == 'courier'
+            else None
+        )
+
         if expected_mode is None:
-            raise HTTPException(400, 'Неизвестный способ доставки СДЭК')
-        selected = next((t for t in tariffs if int(t.get('tariff_code', -1)) == int(body.delivery_tariff_code) and int(t.get('delivery_mode', 0)) == expected_mode), None)
+            raise HTTPException(
+                400,
+                'Неизвестный способ доставки СДЭК'
+            )
+
+        selected = next(
+            (
+                t for t in tariffs
+                if int(t.get('tariff_code', -1))
+                == int(body.delivery_tariff_code)
+                and int(t.get('delivery_mode', 0))
+                == expected_mode
+            ),
+            None,
+        )
+
         if not selected:
-            raise HTTPException(400, 'Выбранный тариф СДЭК не соответствует способу доставки')
-        delivery_total = Decimal(str(selected.get('delivery_sum', selected.get('total_sum', 0)))).quantize(Decimal('0.01'))
+            raise HTTPException(
+                400,
+                'Выбранный тариф СДЭК не соответствует способу доставки'
+            )
+
+        delivery_total = Decimal(
+            str(
+                selected.get(
+                    'delivery_sum',
+                    selected.get('total_sum', 0),
+                )
+            )
+        ).quantize(Decimal('0.01'))
+
+    elif provider == 'pochta':
+        if not pochta.configured:
+            raise HTTPException(
+                503,
+                'Почта России пока не подключена'
+            )
+
+        result = await _pochta_delivery_quote(
+            lines,
+            postal_code,
+            body.delivery_type,
+            db=db, packing_plan=packing_plan,
+        )
+
+        postal_code = result['postal_code']
+        delivery_total = result['price']
+
+        office = result['office']
+
+        order_delivery_point = postal_code
+
+        order_city_name = (
+            office.get('settlement')
+            or body.city_name
+        )
+
+        office_address = ', '.join(
+            str(x).strip()
+            for x in [
+                office.get('region'),
+                office.get('settlement'),
+                office.get('address-source'),
+            ]
+            if x
+        )
+
+        if body.delivery_type == 'pickup':
+            order_address = (
+                office_address
+                or f'Индекс {postal_code}'
+            )
+
+        elif body.delivery_type == 'poste_restante':
+            order_address = (
+                f'До востребования, индекс {postal_code}'
+                + (
+                    f', {office_address}'
+                    if office_address
+                    else ''
+                )
+            )
+
+        elif body.delivery_type == 'courier':
+            address = (body.address or '').strip()
+
+            if not address:
+                raise HTTPException(
+                    400,
+                    'Укажите адрес доставки'
+                )
+
+            order_address = address
+
     total = discounted_items_total - balance_used + delivery_total
     order = Order(
         user_id=user.id, status='new', items_total=items_total, balance_used=balance_used,
         delivery_total=delivery_total, total=total, payment_provider=settings.payment_provider,
-        delivery_type=body.delivery_type, delivery_tariff_code=body.delivery_tariff_code,
-        delivery_point=body.delivery_point, city_code=body.city_code, city_name=body.city_name,
-        address=body.address, customer_name=body.customer_name, phone=body.phone, email=email,
+        delivery_type=body.delivery_type,
+        delivery_provider=provider,
+        postal_code=postal_code,
+        delivery_tariff_code=(
+            body.delivery_tariff_code
+            if provider == 'cdek'
+            else None
+        ),
+        delivery_point=order_delivery_point,
+        city_code=(
+            body.city_code
+            if provider == 'cdek'
+            else None
+        ),
+        city_name=order_city_name,
+        address=order_address,
+        customer_name=body.customer_name,
+        phone=body.phone,
+        email=email,
         promo_code=promo_code or None, promo_percent=promo_percent, promo_discount=promo_discount,
     )
     # Запоминаем данные последнего оформления для следующего заказа.
     user.full_name = body.customer_name
     user.phone = body.phone
     user.email = email
-    user.city_code = body.city_code
-    user.city_name = body.city_name
+    user.city_code = (
+        body.city_code
+        if provider == 'cdek'
+        else None
+    )
+    user.city_name = order_city_name
     user.delivery_type = body.delivery_type
-    user.delivery_point = body.delivery_point
-    user.address = body.address
+    user.delivery_point = order_delivery_point
+    user.delivery_provider = provider
+    user.postal_code = postal_code
+    user.address = order_address
 
     db.add(order); db.flush()
+    packing.put_record(db, "o:" + str(order.id), packing_plan)
     for p, qty in lines:
         db.add(OrderItem(order_id=order.id, product_id=p.id, name=p.name, qty=qty, unit_price=p.price, line_total=Decimal(p.price)*qty))
     if balance_used > 0:
@@ -378,7 +763,11 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
 
     if delivery_cents > 0:
         receipt_items.append({
-            'description': 'Доставка СДЭК',
+            'description': (
+                'Доставка Почтой России'
+                if order.delivery_provider == 'pochta'
+                else 'Доставка СДЭК'
+            ),
             'quantity': 1,
             'amount': {
                 'value': f'{Decimal(delivery_cents) / Decimal(100):.2f}',
@@ -433,36 +822,17 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
 
 
 async def create_cdek_shipment(db: Session, order: Order):
-    if not cdek.configured or order.cdek_order_uuid:
+    if (
+        order.delivery_provider != 'cdek'
+        or not cdek.configured
+        or order.cdek_order_uuid
+    ):
         return order.cdek_order_uuid
     if not settings.cdek_shipment_point:
         raise RuntimeError('CDEK shipment point is not configured')
 
-    lines = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
-    packages = []
-    for idx, line in enumerate(lines, 1):
-        product = db.get(Product, line.product_id) if line.product_id else None
-        weight_each = max(1, int((product.weight_g if product else 100) or 100))
-        length = max(1, int((product.length_cm if product else 10) or 10))
-        width = max(1, int((product.width_cm if product else 10) or 10))
-        height = max(1, int((product.height_cm if product else 10) or 10))
-        qty = max(1, int(line.qty))
-        packages.append({
-            'number': f'{order.id}-{idx}',
-            'weight': weight_each * qty,
-            'length': length,
-            'width': width,
-            'height': height,
-            'items': [{
-                'name': (line.name or 'Товар')[:255],
-                'ware_key': str(line.product_id or f'{order.id}-{idx}'),
-                'payment': {'value': 0},
-                'cost': float(line.unit_price),
-                'weight': weight_each,
-                'amount': qty,
-            }],
-        })
-
+    plan = packing.saved_plan(db, order)
+    packages = [packing.shipment_package(plan, order.id)]
     if not packages:
         raise RuntimeError('CDEK: order has no packages')
 
@@ -532,7 +902,11 @@ async def mark_paid(db: Session, order: Order):
         if not order.promo_code:
             credit_referrer_for_paid_order(db, order)
 
-    if cdek.configured and not order.cdek_order_uuid:
+    if (
+        order.delivery_provider == 'cdek'
+        and cdek.configured
+        and not order.cdek_order_uuid
+    ):
         try:
             await create_cdek_shipment(db, order)
         except Exception as exc:
@@ -627,14 +1001,14 @@ def admin_products(admin: User = Depends(require_admin), db: Session = Depends(g
 
 @app.post('/api/admin/products')
 def admin_product_create(body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
-    p = Product(**body.model_dump()); db.add(p); db.commit(); db.refresh(p); return product_json(p)
+    p = Product(**body.model_dump(exclude={"shipping_ready", "allow_rotation"})); db.add(p); packing.save_product_meta(db, p, body); db.commit(); db.refresh(p); return product_json(p)
 
 @app.put('/api/admin/products/{product_id}')
 def admin_product_update(product_id: int, body: ProductIn, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     p = db.get(Product, product_id)
     if not p: raise HTTPException(404, 'Product not found')
-    for k,v in body.model_dump().items(): setattr(p,k,v)
-    db.commit(); return product_json(p)
+    for k,v in body.model_dump(exclude={"shipping_ready", "allow_rotation"}).items(): setattr(p,k,v)
+    packing.save_product_meta(db, p, body); db.commit(); return product_json(p)
 
 @app.delete('/api/admin/products/{product_id}')
 def admin_product_delete(product_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
@@ -930,3 +1304,23 @@ def product_documents():
 # LAVKA_PRODUCT_DOCUMENTS_V1_END
 
 app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')
+
+
+# LAVKA_PACKING_V1: admin-only packaging settings and saved assembly plans.
+@app.get('/api/admin/packing')
+def admin_packing_get(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    return packing.config_for(db)
+
+@app.put('/api/admin/packing')
+def admin_packing_update(body: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    value = packing.validate_config(body)
+    packing.put_record(db, 'config', value)
+    db.commit()
+    return value
+
+@app.get('/api/admin/orders/{order_id}/packing')
+def admin_order_packing(order_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(404, 'Заказ не найден')
+    return packing.saved_plan(db, order)

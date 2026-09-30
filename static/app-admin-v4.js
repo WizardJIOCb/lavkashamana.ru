@@ -55,19 +55,49 @@ function lavkaDisplayName(p){
 
 const tg = window.Telegram?.WebApp;
 const maxApp = window.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+if (tg) { try{ tg.ready?.(); tg.expand?.(); }catch(e){ console.warn('TG_INIT',e); } }
 
 const DEV_USER = { id: 777000, username: 'shamanchik007' };
-const state = { boot:null, tab:'shop', category:'all', cart:JSON.parse(localStorage.getItem('shaman_cart')||'{}') };
+let lavkaInitialCart={};
+try{
+  const rawCart=localStorage.getItem('shaman_cart');
+  lavkaInitialCart=rawCart?JSON.parse(rawCart):{};
+  if(!lavkaInitialCart || typeof lavkaInitialCart!=='object' || Array.isArray(lavkaInitialCart)){
+    lavkaInitialCart={};
+  }
+}catch(e){
+  lavkaInitialCart={};
+  try{ localStorage.removeItem('shaman_cart'); }catch(_){}
+}
+const state = { boot:null, tab:'shop', category:'all', cart:lavkaInitialCart };
 const $ = s => document.querySelector(s);
 const rub = n => new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(Number(n||0));
 const esc = s => String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
+
+function lavkaTelegramInitData(){
+  try{
+    if(tg?.initData) return tg.initData;
+  }catch(_){}
+  try{
+    const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+    const v=h.get('tgWebAppData');
+    if(v) return v;
+  }catch(_){}
+  try{
+    const q=new URLSearchParams(location.search||'');
+    const v=q.get('tgWebAppData');
+    if(v) return v;
+  }catch(_){}
+  return '';
+}
+
 function authHeaders(){
   const h={'Content-Type':'application/json'};
 
-  if (tg?.initData) {
-    h['X-Telegram-Init-Data']=tg.initData;
+  const telegramInitData=lavkaTelegramInitData();
+  if (telegramInitData) {
+    h['X-Telegram-Init-Data']=telegramInitData;
   } else if (maxApp?.initData) {
     h['X-Max-Init-Data']=maxApp.initData;
   } else {
@@ -92,17 +122,52 @@ async function api(path, opts={}){
 }
 function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2400); }
 function saveCart(){ localStorage.setItem('shaman_cart',JSON.stringify(state.cart)); updateBadge(); }
-function updateBadge(){ const n=Object.values(state.cart).reduce((a,b)=>a+b,0); $('#cartBadge').textContent=n?`(${n})`:''; }
+function updateBadge(){
+  const n=Object.values(state.cart||{}).reduce((a,b)=>a+Number(b||0),0);
+  const el=$('#cartBadge');
+  if(el) el.textContent=n?`(${n})`:'';
+}
 function cartLines(){ if(!state.boot)return[]; return Object.entries(state.cart).map(([id,qty])=>[state.boot.products.find(p=>p.id==id),qty]).filter(x=>x[0]); }
 function addCart(id){ const p=state.boot.products.find(x=>x.id===id); if(!p||p.stock<1)return; state.cart[id]=Math.min((state.cart[id]||0)+1,p.stock); saveCart(); toast('Добавлено в корзину'); render(); }
 function setQty(id,delta){ const p=state.boot.products.find(x=>x.id==id); let q=(state.cart[id]||0)+delta; if(q<=0)delete state.cart[id]; else state.cart[id]=Math.min(q,p.stock); saveCart(); render(); }
 
 async function boot(){
-  try{ state.boot=await api('/api/bootstrap'); $('#adminTab').classList.toggle('hidden',!state.boot.me.is_admin); render(); }
-  catch(e){ $('#content').innerHTML=`<div class="panel"><h2>Не удалось открыть приложение</h2><p class="muted">${esc(e.message)}</p></div>`; }
+  try{
+    state.boot=await api('/api/bootstrap');
+    const adminTab=$('#adminTab');
+    if(adminTab) adminTab.classList.toggle('hidden',!state.boot?.me?.is_admin);
+    render();
+  }catch(e){
+    console.error('BOOT_ERROR',e);
+    const authMsg=String(e?.message||e||'');
+    if(authMsg.includes('Messenger authorization required')){
+      const authTarget='https://t.me/Lavkashamanbot?startapp';
+      const last=Number(localStorage.getItem('lavka_auth_redirect_at')||0);
+      if(Date.now()-last>30000){
+        localStorage.setItem('lavka_auth_redirect_at',String(Date.now()));
+        try{
+          if(tg?.openTelegramLink){ tg.openTelegramLink(authTarget); }
+          else{ location.href=authTarget; }
+          return;
+        }catch(_){ location.href=authTarget; return; }
+      }
+    }
+    const c=$('#content');
+    if(c) c.innerHTML=`<div class="panel"><h2>Не удалось открыть приложение</h2><p class="muted">${esc(e?.message||e)}</p></div>`;
+  }
 }
 function nav(){ document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab)); }
-function render(){ nav(); updateBadge(); const c=$('#content'); if(!state.boot)return; if(state.tab==='shop')c.innerHTML=shopView(); if(state.tab==='cart')c.innerHTML=cartView(); if(state.tab==='profile')c.innerHTML=profileView(); if(state.tab==='admin')c.innerHTML=adminView(); bind(); }
+function render(){
+  nav();
+  updateBadge();
+  const c=$('#content');
+  if(!c || !state.boot) return;
+  if(state.tab==='shop') c.innerHTML=shopView();
+  if(state.tab==='cart') c.innerHTML=cartView();
+  if(state.tab==='profile') c.innerHTML=profileView();
+  if(state.tab==='admin') c.innerHTML=adminView();
+  bind();
+}
 
 
 /* LAVKA_NESTED_CATEGORIES_V1 */
@@ -577,6 +642,44 @@ async function checkoutModal(){
         <input id="coPromo" placeholder="Если есть">
         <div style="font-size:12px;opacity:.72;margin-top:6px">Скидка по промокоду применяется только к стоимости товаров и не суммируется с реферальной программой.</div>
       </div>
+      <div class="field" id="providerField">
+        <label>Служба доставки</label>
+        <select id="coProvider">
+          <option value="cdek">СДЭК</option>
+          <option value="pochta">Почта России</option>
+        </select>
+      </div>
+
+      <div class="field hidden" id="postalField">
+        <label>Индекс получателя</label>
+
+        <input
+          id="coPostal"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="postal-code"
+          value="${esc(m.postal_code||'')}"
+          placeholder="6 цифр">
+
+        <div id="postalHint" class="muted"></div>
+
+        <div style="height:10px"></div>
+
+        <label>Найти отделение по адресу</label>
+
+        <input
+          id="coPochtaSearch"
+          type="search"
+          autocomplete="off"
+          placeholder="Город, улица или адрес">
+
+        <div
+          id="pochtaSearchResults"
+          class="pvz-results">
+        </div>
+      </div>
+
       <div class="field">
         <label>Город доставки</label>
 
@@ -665,6 +768,12 @@ async function checkoutModal(){
       : null;
 
   let tariffs=[];
+
+  let pochtaQuote=null;
+  let pochtaOffice=null;
+  let pochtaTimer=null;
+  let pochtaSearchTimer=null;
+
 
 
 
@@ -868,7 +977,195 @@ async function checkoutModal(){
 
   $('#coPvzSearch').oninput=renderPvz;
 
+  async function loadPochtaData(){
+    if($('#coProvider').value!=='pochta') return;
+
+    const input=$('#coPostal');
+    const hint=$('#postalHint');
+
+    const code=String(input.value||'')
+      .replace(/\D/g,'')
+      .slice(0,6);
+
+    input.value=code;
+
+    pochtaQuote=null;
+    pochtaOffice=null;
+
+    if(code.length!==6){
+      hint.textContent='Введите полный индекс из 6 цифр.';
+
+      $('#deliveryNotice').textContent=
+        'Введите индекс или найдите отделение по адресу.';
+
+      return;
+    }
+
+    hint.textContent='Проверяем отделение...';
+
+    $('#deliveryNotice').textContent=
+      'Рассчитываем доставку Почтой России...';
+
+    try{
+      const office=await api(
+        '/api/pochta/postoffice/'+encodeURIComponent(code)
+      );
+
+      if(office.is_closed){
+        throw new Error(
+          'Выбранное отделение сейчас закрыто'
+        );
+      }
+
+      const quote=await api('/api/pochta/quote',{
+        method:'POST',
+        body:JSON.stringify({
+          items,
+          postal_code:code,
+          delivery_type:$('#coType').value
+        })
+      });
+
+      pochtaOffice=office;
+      pochtaQuote=quote;
+
+      const officeText=[
+        office.postal_code,
+        office.region,
+        office.settlement,
+        office.address
+      ].filter(Boolean).join(' · ');
+
+      hint.innerHTML=`
+        <div class="pvz-selected">
+          <div class="pvz-selected-label">
+            Выбрано отделение Почты России
+          </div>
+
+          <strong>${esc(officeText)}</strong>
+        </div>
+      `;
+
+      const days=
+        quote.period_min!=null || quote.period_max!=null
+          ? ` · ${quote.period_min??'?'}–${quote.period_max??'?'} дн.`
+          : '';
+
+      const modeName=
+        quote.delivery_type==='courier'
+          ? 'EMS курьер'
+          : quote.delivery_type==='poste_restante'
+            ? 'До востребования'
+            : 'До отделения';
+
+      $('#deliveryNotice').textContent=
+        `${modeName}: ${rub(quote.price)}${days}`;
+
+    }catch(e){
+      pochtaQuote=null;
+      pochtaOffice=null;
+
+      hint.textContent='Не удалось подтвердить индекс.';
+
+      $('#deliveryNotice').textContent=
+        'Почта России: '+e.message;
+    }
+  }
+
+
+  async function searchPochtaOffices(){
+    if($('#coProvider').value!=='pochta') return;
+
+    const q=$('#coPochtaSearch').value.trim();
+    const box=$('#pochtaSearchResults');
+
+    if(q.length<3){
+      box.innerHTML='';
+      return;
+    }
+
+    try{
+      const rows=await api(
+        '/api/pochta/postoffices?q='+
+        encodeURIComponent(q)
+      );
+
+      const list=Array.isArray(rows)
+        ? rows.slice(0,10)
+        : [];
+
+      if(!list.length){
+        box.innerHTML=
+          '<div class="muted">Отделения не найдены</div>';
+        return;
+      }
+
+      box.innerHTML=list.map(x=>{
+        const title=[
+          x.postal_code,
+          x.settlement
+        ].filter(Boolean).join(' · ');
+
+        const address=[
+          x.region,
+          x.address
+        ].filter(Boolean).join(', ');
+
+        return `
+          <button
+            type="button"
+            class="pvz-result"
+            data-postal-code="${esc(String(x.postal_code||''))}"
+            data-postal-label="${esc(
+              [x.settlement,x.address]
+                .filter(Boolean)
+                .join(', ')
+            )}">
+
+            <div class="pvz-result-title">
+              ${esc(title)}
+            </div>
+
+            <div class="pvz-result-address">
+              ${esc(address)}
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      box
+        .querySelectorAll('[data-postal-code]')
+        .forEach(btn=>{
+          btn.onclick=async()=>{
+            const code=String(
+              btn.dataset.postalCode||''
+            );
+
+            $('#coPostal').value=code;
+
+            $('#coPochtaSearch').value=
+              btn.dataset.postalLabel||'';
+
+            box.innerHTML='';
+
+            await loadPochtaData();
+          };
+        });
+
+    }catch(e){
+      box.innerHTML=
+        `<div class="muted">${esc(e.message)}</div>`;
+    }
+  }
+
+
   const renderTariffs=()=>{
+    if($('#coProvider').value==='pochta'){
+      $('#coTariff').innerHTML=
+        '<option value="">Стоимость рассчитывается Почтой России</option>';
+      return;
+    }
+
     const mode=$('#coType').value;
 
     const filtered=tariffs.filter(t=>{
@@ -894,16 +1191,57 @@ async function checkoutModal(){
 
 
   const updateMode=()=>{
-    const pickup=$('#coType').value==='pickup';
+    const provider=$('#coProvider').value;
+    const mode=$('#coType').value;
 
-    $('#pvzField').classList.toggle('hidden',!pickup);
-    $('#addressField').classList.toggle('hidden',pickup);
+    const cdekPickup=
+      provider==='cdek' &&
+      mode==='pickup';
 
-    renderTariffs();
+    $('#pvzField').classList.toggle(
+      'hidden',
+      !cdekPickup
+    );
+
+    $('#addressField').classList.toggle(
+      'hidden',
+      mode!=='courier'
+    );
+
+    $('#postalField').classList.toggle(
+      'hidden',
+      provider!=='pochta'
+    );
+
+    $('#tariffField').classList.toggle(
+      'hidden',
+      provider==='pochta'
+    );
+
+    const cityInput=$('#coCity');
+
+    if(cityInput){
+      const cityField=cityInput.closest('.field');
+
+      if(cityField){
+        cityField.classList.toggle(
+          'hidden',
+          provider==='pochta'
+        );
+      }
+    }
+
+    if(provider==='pochta'){
+      $('#cityResults').innerHTML='';
+      renderTariffs();
+    }else{
+      renderTariffs();
+    }
   };
 
 
   async function loadCityData(savedPoint=null){
+    if($('#coProvider').value!=='cdek') return;
     pvzRows=[];
     $('#coPvzSearch').value='';
     renderPvz();
@@ -956,8 +1294,123 @@ async function checkoutModal(){
   }
 
 
-  $('#coType').onchange=updateMode;
-  updateMode();
+  function configureDeliveryProvider(resetMode=false){
+    const provider=$('#coProvider').value;
+    const type=$('#coType');
+
+    const current=
+      resetMode
+        ? ''
+        : (
+            type.value ||
+            m.delivery_type ||
+            ''
+          );
+
+    if(provider==='pochta'){
+      type.innerHTML=`
+        <option value="pickup">До отделения</option>
+        <option value="poste_restante">До востребования</option>
+        <option value="courier">EMS курьер</option>
+      `;
+
+      type.value=
+        ['pickup','poste_restante','courier']
+          .includes(current)
+            ? current
+            : 'pickup';
+
+    }else{
+      type.innerHTML=`
+        <option value="pickup">Пункт выдачи СДЭК</option>
+        <option value="courier">Курьер СДЭК</option>
+      `;
+
+      type.value=
+        ['pickup','courier'].includes(current)
+          ? current
+          : 'pickup';
+    }
+
+    updateMode();
+  }
+
+
+  $('#coType').onchange=async()=>{
+    updateMode();
+
+    if($('#coProvider').value==='pochta'){
+      await loadPochtaData();
+    }
+  };
+
+
+  $('#coProvider').value=
+    m.delivery_provider==='pochta'
+      ? 'pochta'
+      : 'cdek';
+
+
+  $('#coProvider').onchange=async()=>{
+    pochtaQuote=null;
+    pochtaOffice=null;
+
+    configureDeliveryProvider(true);
+
+    if($('#coProvider').value==='pochta'){
+      await loadPochtaData();
+
+    }else if(city?.code){
+      await loadCityData(
+        m.delivery_point||null
+      );
+
+    }else{
+      $('#deliveryNotice').textContent=
+        'Выберите город для расчёта доставки.';
+    }
+  };
+
+
+  $('#coPostal').oninput=()=>{
+    const el=$('#coPostal');
+
+    el.value=String(el.value||'')
+      .replace(/\D/g,'')
+      .slice(0,6);
+
+    pochtaQuote=null;
+    pochtaOffice=null;
+
+    clearTimeout(pochtaTimer);
+
+    if(el.value.length===6){
+      pochtaTimer=setTimeout(
+        ()=>loadPochtaData(),
+        300
+      );
+
+    }else{
+      $('#postalHint').textContent=
+        'Введите полный индекс из 6 цифр.';
+
+      $('#deliveryNotice').textContent=
+        'Введите индекс или найдите отделение по адресу.';
+    }
+  };
+
+
+  $('#coPochtaSearch').oninput=()=>{
+    clearTimeout(pochtaSearchTimer);
+
+    pochtaSearchTimer=setTimeout(
+      ()=>searchPochtaOffices(),
+      350
+    );
+  };
+
+
+  configureDeliveryProvider(false);
 
 
   let timer;
@@ -1011,22 +1464,60 @@ async function checkoutModal(){
   };
 
 
-  if(city?.code){
-    await loadCityData(m.delivery_point||null);
+  if(
+    $('#coProvider').value==='cdek' &&
+    city?.code
+  ){
+    await loadCityData(
+      m.delivery_point||null
+    );
+  }
+
+  if(
+    $('#coProvider').value==='pochta' &&
+    /^\d{6}$/.test(
+      String($('#coPostal').value||'')
+    )
+  ){
+    await loadPochtaData();
   }
 
 
   $('#placeOrder').onclick=async()=>{
     try{
-      const pickup=$('#coType').value==='pickup';
+      const provider=
+        $('#coProvider').value;
+
+      const mode=
+        $('#coType').value;
+
+      const pickup=
+        provider==='cdek' &&
+        mode==='pickup';
 
       const tariff=
-        Number($('#coTariff').value||0)||null;
+        provider==='cdek'
+          ? (
+              Number(
+                $('#coTariff').value||0
+              ) || null
+            )
+          : null;
 
       const pvz=
         pickup
           ? ($('#coPvz').value||null)
           : null;
+
+      const postalCode=
+        provider==='pochta'
+          ? String(
+              $('#coPostal').value||''
+            )
+              .replace(/\D/g,'')
+              .slice(0,6)
+          : null;
+
 
       const payload={
         items,
@@ -1036,26 +1527,47 @@ async function checkoutModal(){
         phone:$('#coPhone').value.trim(),
         email:$('#coEmail').value.trim(),
 
-        promo_code:($('#coPromo').value.trim().toUpperCase()||null),
-        city_code:city?.code||null,
+        promo_code:
+          ($('#coPromo').value.trim().toUpperCase()||null),
+
+        delivery_provider:provider,
+        postal_code:postalCode,
+
+        city_code:
+          provider==='cdek'
+            ? (city?.code||null)
+            : null,
 
         city_name:
-          city?.name ||
-          $('#coCity').value.trim() ||
-          null,
+          provider==='cdek'
+            ? (
+                city?.name ||
+                $('#coCity').value.trim() ||
+                null
+              )
+            : (
+                pochtaOffice?.settlement ||
+                null
+              ),
 
-        delivery_type:$('#coType').value,
+        delivery_type:mode,
 
         delivery_tariff_code:tariff,
 
-        delivery_point:pvz,
+        delivery_point:
+          provider==='cdek'
+            ? pvz
+            : postalCode,
 
         delivery_total:0,
 
         address:
-          pickup
-            ? null
-            : ($('#coAddress').value.trim()||null),
+          mode==='courier'
+            ? (
+                $('#coAddress').value.trim() ||
+                null
+              )
+            : null,
 
         use_balance:Number($('#coBalance').value||0)
       };
@@ -1067,28 +1579,72 @@ async function checkoutModal(){
         throw new Error('Заполни телефон и email для кассового чека');
       }
 
-      if(
-        state.boot.integrations.cdek &&
-        (!payload.city_code||!payload.delivery_tariff_code)
-      ){
-        throw new Error('Выбери город и тариф СДЭК');
+      if(provider==='cdek'){
+        if(
+          state.boot.integrations.cdek &&
+          (
+            !payload.city_code ||
+            !payload.delivery_tariff_code
+          )
+        ){
+          throw new Error(
+            'Выбери город и тариф СДЭК'
+          );
+        }
+
+        if(
+          state.boot.integrations.cdek &&
+          pickup &&
+          !payload.delivery_point
+        ){
+          throw new Error(
+            'Выбери ПВЗ СДЭК'
+          );
+        }
+
+        if(
+          state.boot.integrations.cdek &&
+          mode==='courier' &&
+          !payload.address
+        ){
+          throw new Error(
+            'Укажи адрес курьерской доставки'
+          );
+        }
+
+      }else{
+        if(!state.boot.integrations.pochta){
+          throw new Error(
+            'Почта России пока не подключена'
+          );
+        }
+
+        if(!/^\d{6}$/.test(postalCode||'')){
+          throw new Error(
+            'Укажи индекс из 6 цифр'
+          );
+        }
+
+        if(
+          !pochtaQuote ||
+          String(pochtaQuote.postal_code)!==postalCode ||
+          pochtaQuote.delivery_type!==mode
+        ){
+          throw new Error(
+            'Дождись расчёта доставки Почтой России'
+          );
+        }
+
+        if(
+          mode==='courier' &&
+          !payload.address
+        ){
+          throw new Error(
+            'Укажи адрес для EMS-доставки'
+          );
+        }
       }
 
-      if(
-        state.boot.integrations.cdek &&
-        pickup &&
-        !payload.delivery_point
-      ){
-        throw new Error('Выбери ПВЗ');
-      }
-
-      if(
-        state.boot.integrations.cdek &&
-        !pickup &&
-        !payload.address
-      ){
-        throw new Error('Укажи адрес курьерской доставки');
-      }
 
       const r=await api('/api/orders',{
         method:'POST',
@@ -1116,7 +1672,10 @@ async function checkoutModal(){
 
 async function showReferrals(){ try{const r=await api('/api/referrals'); modal(`<div class="section-head"><h2>Реферальная программа</h2><span class="badge">${r.rate}%</span></div><p class="muted">Активных покупателей: ${r.active_count}</p><div class="admin-list">${r.people.map(p=>`<div class="admin-row"><div><strong>${esc(p.first_name||p.username||p.telegram_id)}</strong><div class="muted">${p.bought?'Покупал':'Ещё не покупал'}</div></div><span class="badge">${p.paid_orders} заказ.</span></div>`).join('')||'<div class="empty">Пока никого</div>'}</div><h3>Начисления</h3><div class="admin-list">${r.credits.map(c=>`<div class="admin-row"><div>Заказ №${c.order_id}<div class="muted">${c.rate}% от ${rub(c.base)}</div></div><strong>+${rub(c.amount)}</strong></div>`).join('')||'<div class="empty">Начислений пока нет</div>'}</div>`);}catch(e){toast(e.message)} }
 
-function productModal(p={}){
+async function productModal(p={}){
+  let packingConfig;
+  try{ packingConfig=await api('/api/admin/packing'); }catch(e){ toast(e.message); return; }
+
   function readMeta(prod){
     const raw=String(prod?.description||'');
     const m=raw.match(/\[\[VARIANT:([^|\]]+)\|([0-9.]+)\|(g|ml|pcs)\]\]/);
@@ -1196,6 +1755,14 @@ function productModal(p={}){
                  value="${item.price??0}">
         </div>
 
+
+        <div class="notice">Размеры одной единицы с учётом сжатой защитной плёнки. Вес — с тарой и индивидуальной плёнкой.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          ${[['vWeight','Вес 1 шт., г','weight_g'],['vLength','Длина, см','length_cm'],['vWidth','Ширина, см','width_cm'],['vHeight','Высота, см','height_cm']].map(([cls,label,key])=>`
+            <div class="field"><label>${label}</label><input class="${cls}" type="number" min="1" step="1" value="${item.shipping_ready ? (item[key]??'') : ''}" placeholder="Укажи вручную"></div>
+          `).join('')}
+        </div>
+        <label style="display:flex;align-items:center;gap:8px"><input class="vRotate" type="checkbox" ${item.allow_rotation!==false?'checked':''}>Можно поворачивать и класть набок</label>
         <button class="btn secondary removeVariant" type="button">
           Удалить вариант
         </button>
@@ -1265,6 +1832,14 @@ function productModal(p={}){
         ${items.length ? items.map(variantRow).join('') : variantRow()}
       </div>
 
+
+      <details style="margin:12px 0">
+        <summary>Упаковка — общие настройки</summary>
+        <div class="notice">Заполни один раз. Плёнка между товарами включена в параметры фасовки; дополнительный зазор не прибавляется.</div>
+        <div class="field"><label>Толщина стенки картона, мм</label><input id="packWall" type="number" min="0" max="20" step="1" value="${packingConfig.wall_mm}"></div>
+        ${['30 × 10 × 10','30 × 20 × 10','30 × 20 × 20'].map((size,i)=>`<div class="field"><label>Вес пустой коробки ${size}, г</label><input class="packBoxWeight" type="number" min="0" step="1" value="${packingConfig.box_weights_g[i]??''}" placeholder="Взвесь пустую коробку"></div>`).join('')}
+        <div class="field"><label>Скотч и внешняя плёнка на одну коробку, г</label><input id="packTape" type="number" min="0" step="1" value="${packingConfig.tape_g??''}" placeholder="Укажи вес"></div>
+      </details>
       <button class="btn gold" id="saveP">
         Сохранить
       </button>
@@ -1350,6 +1925,27 @@ function productModal(p={}){
       const image_url=$('#pImg').value.trim();
 
       const rows=[...d.querySelectorAll('.variant-row')];
+
+      const shippingNumber=(row,cls)=>{
+        const value=Number(row.querySelector('.'+cls).value);
+        if(!Number.isSafeInteger(value) || value<=0) throw new Error('Укажи целые положительные размеры и вес у каждой фасовки');
+        return value;
+      };
+      for(const row of rows){
+        for(const cls of ['vWeight','vLength','vWidth','vHeight']) shippingNumber(row,cls);
+        const a=Number(row.querySelector('.vAmount').value);
+        const price=Number(row.querySelector('.vPrice').value);
+        if(!Number.isFinite(a)||a<=0) throw new Error('Укажи количество');
+        if(!Number.isFinite(price)||price<0) throw new Error('Укажи корректную цену');
+      }
+      const packNumber=(input,max,nullable=false)=>{
+        if(nullable && input.value.trim()==='') return null;
+        const n=Number(input.value);
+        if(!Number.isSafeInteger(n)||n<0||n>max) throw new Error('Проверь настройки упаковки');
+        return n;
+      };
+      const packConfig={wall_mm:packNumber(d.querySelector('#packWall'),20),tape_g:packNumber(d.querySelector('#packTape'),10000,true),box_weights_g:[...d.querySelectorAll('.packBoxWeight')].map(x=>packNumber(x,10000,true))};
+      await api('/api/admin/packing',{method:'PUT',body:JSON.stringify(packConfig)});
       const keep=[];
 
       for(const row of rows){
@@ -1381,15 +1977,12 @@ function productModal(p={}){
 
           image_url,
 
-          weight_g:
-            unit==='g' ? Math.round(amount)
-            : unit==='ml' ? Math.round(amount)
-            : Number(old?.weight_g||200),
-
-          length_cm:Number(old?.length_cm||15),
-          width_cm:Number(old?.width_cm||20),
-          height_cm:Number(old?.height_cm||10),
-
+          weight_g:shippingNumber(row,'vWeight'),
+          length_cm:shippingNumber(row,'vLength'),
+          width_cm:shippingNumber(row,'vWidth'),
+          height_cm:shippingNumber(row,'vHeight'),
+          shipping_ready:true,
+          allow_rotation:row.querySelector('.vRotate').checked,
           active:true
         };
 
@@ -1731,7 +2324,15 @@ function promoCodeModal(p=null){
 async function showAdminOrders(){ try{const rows=await api('/api/admin/orders'); modal(`<div class="section-head"><h2>Заказы</h2><span class="badge">${rows.length}</span></div><div class="admin-list">${rows.map(o=>`<div class="admin-row"><div><strong>№${o.id} · ${rub(o.total)}</strong><div class="muted">${esc(o.customer_name||'')} · ${esc(o.phone||'')}<br>${esc(o.city_name||'')} ${esc(o.address||'')}</div></div><span class="badge">${esc(o.status)}</span></div>`).join('')||'<div class="empty">Нет заказов</div>'}</div>`);}catch(e){toast(e.message)} }
 
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;render()});
-updateBadge(); boot();
+function lavkaStart(){
+  try{ updateBadge(); }catch(e){ console.warn('BADGE_START',e); }
+  boot();
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',lavkaStart,{once:true});
+}else{
+  lavkaStart();
+}
 
 
 /* LAVKA INFO PAGE */

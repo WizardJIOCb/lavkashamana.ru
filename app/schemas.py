@@ -19,6 +19,8 @@ class ProductIn(BaseModel):
     width_cm: int = Field(default=20, ge=1)
     height_cm: int = Field(default=10, ge=1)
     active: bool = True
+    shipping_ready: bool = False
+    allow_rotation: bool = True
 
 class CartItemIn(BaseModel):
     product_id: int
@@ -37,6 +39,8 @@ class OrderIn(BaseModel):
     promo_code: Optional[str] = None
     city_code: Optional[int] = None
     city_name: Optional[str] = None
+    delivery_provider: str = 'cdek'
+    postal_code: Optional[str] = None
     delivery_type: str = 'pickup'
     delivery_tariff_code: Optional[int] = None
     delivery_point: Optional[str] = None

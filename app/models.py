@@ -17,6 +17,8 @@ class User(Base):
     city_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
     delivery_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     delivery_point: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    delivery_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     referrer_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), nullable=True, index=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -61,6 +63,8 @@ class Order(Base):
     payment_id: Mapped[str | None] = mapped_column(String(160), nullable=True, unique=True)
     payment_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_type: Mapped[str] = mapped_column(String(40), default='pickup')
+    delivery_provider: Mapped[str] = mapped_column(String(20), default='cdek')
+    postal_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     delivery_tariff_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     delivery_point: Mapped[str | None] = mapped_column(String(80), nullable=True)
     city_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -110,5 +114,11 @@ class ReferralCredit(Base):
 
 class Setting(Base):
     __tablename__ = 'settings'
+    key: Mapped[str] = mapped_column(String(120), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default='')
+
+
+class PackingData(Base):
+    __tablename__ = 'packing_data'
     key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value: Mapped[str] = mapped_column(Text, default='')
