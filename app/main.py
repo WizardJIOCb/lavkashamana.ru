@@ -685,7 +685,7 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
     db.add(order); db.flush()
     packing.put_record(db, "o:" + str(order.id), packing_plan)
     for p, qty in lines:
-        db.add(OrderItem(order_id=order.id, product_id=p.id, name=p.name, qty=qty, unit_price=p.price, line_total=Decimal(p.price)*qty))
+        db.add(OrderItem(order_id=order.id, product_id=p.id, name=packing.product_order_name(p), qty=qty, unit_price=p.price, line_total=Decimal(p.price)*qty))
     if balance_used > 0:
         user.balance = available - balance_used
     db.commit(); db.refresh(order)
@@ -863,7 +863,7 @@ async def create_cdek_shipment(db: Session, order: Order):
     else:
         raise RuntimeError('CDEK: unknown delivery type')
 
-    result = await cdek.create_order(payload)
+    result = await _lavka_orderflow_submit(db, order, payload)
     requests = result.get('requests', []) if isinstance(result, dict) else []
     failed = [r for r in requests if r.get('state') == 'INVALID' or r.get('errors')]
     if failed:
@@ -1330,3 +1330,7 @@ app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')
 # LAVKA_PACKING_V1: admin-only packaging settings and saved assembly plans.
 
 
+
+# LAVKA_ORDERFLOW_V1
+from .services.orderflow import install as _lavka_install_orderflow
+_lavka_install_orderflow(globals())

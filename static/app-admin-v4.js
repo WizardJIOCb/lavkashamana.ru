@@ -3665,6 +3665,7 @@ showAdminOrders = async function(){
               ${Number(o.balance_used || 0) > 0 ? ` · баланс: −${rub(o.balance_used)}` : ''}
               ${Number(o.delivery_total || 0) > 0 ? `<br>Доставка: ${rub(o.delivery_total)}` : ''}
             </div>
+            ${lavkaDeliverySummary(o)}
             ${actions}
           </div>`;
       }).join('') : '<div class="empty">Здесь пока нет заказов.</div>';
@@ -4321,3 +4322,37 @@ async function openFaqEditor(){
 
 /* LAVKA_FAQ_V1_END */
 
+
+/* LAVKA_ORDERFLOW_V1 */
+function lavkaDeliverySummary(o){
+  const s=o.shipment||{}, p=(o.packing||{}).package||{};
+  const provider=o.delivery_provider==="cdek"?"СДЭК":o.delivery_provider==="pochta"?"Почта России":o.delivery_provider||"Не указан";
+  return `<div style="margin-top:12px;overflow-wrap:anywhere"><strong>${esc(provider)}</strong> · ${esc(o.delivery_type==="pickup"?"ПВЗ":o.delivery_type==="courier"?"Курьер":o.delivery_type||"")}<br>${esc([o.city_name,o.delivery_point,s.point_address||o.address].filter(Boolean).join(" · "))}<br>${esc((o.items||[]).map(i=>`${i.name} × ${i.qty}`).join("; "))}${p.weight?`<br>Отправление: ${esc([p.length,p.width,p.height].join(" × "))} см · ${Number(p.weight)} г`:""}<br>${o.cdek_order_uuid?`Передано в СДЭК · UUID: ${esc(o.cdek_order_uuid)}`:esc(s.error||({sending:"Передаётся в СДЭК",submitted:"Запрос принят СДЭК",rejected:"СДЭК отклонил запрос",uncertain:"Нужно проверить ответ СДЭК"}[s.state])||"Отправление ещё не создано")}<button type="button" class="btn secondary" style="display:block;margin-top:10px" onclick="lavkaDeliveryOpen(${Number(o.id)})">Доставка и упаковка</button></div>`;
+}
+async function lavkaDeliveryOpen(id){
+  try{
+    const o=await api(`/api/admin/orders/${id}/delivery-details`);
+    const s=o.shipment||{}, plan=o.packing||{}, p=plan.package||{}, payload=s.payload||{};
+    const sent=(payload.packages||[])[0]||{}, payment=s.payment||{};
+    const line=(a,b)=>`<div style="margin:8px 0"><strong>${esc(a)}:</strong> ${esc(String(b??"Не указано"))}</div>`;
+    const dims=x=>[x.length,x.width,x.height].every(v=>v!=null)?[x.length,x.width,x.height].join(" × ")+" см":"Не сохранены";
+    const d=modal(`<div class="section-head"><h2>Заказ №${id}</h2><button class="btn secondary" data-close-delivery>Закрыть</button></div><div style="overflow-wrap:anywhere">
+      ${line("Статус",o.status)}${line("Получатель",o.customer_name)}${line("Телефон",o.phone)}${line("Email",o.email)}
+      ${line("Город",s.point_city||o.city_name)}${line("Перевозчик",o.delivery_provider)}${line("Способ",o.delivery_type)}
+      ${line("ПВЗ",o.delivery_point)}${line("Адрес ПВЗ / улица",s.point_address||o.address||"Адрес не получен")}${line("Индекс",o.postal_code)}${line("Тариф",o.delivery_tariff_code)}
+      <h3>Товары и фасовки</h3>${(o.items||[]).map(i=>line(i.name,`${i.qty} шт. × ${rub(i.unit_price)} = ${rub(i.line_total)}`)).join("")||"Состав не сохранён"}
+      ${line("Товары",rub(o.items_total))}${line("Доставка",rub(o.delivery_total))}${line("Промокод",rub(o.promo_discount))}${line("Баланс",rub(o.balance_used))}${line("Итого к оплате",rub(o.total))}
+      <h3>Упаковка</h3>${(plan.boxes||[]).map((b,i)=>line(`Коробка ${i+1}`,`${(b.inner_cm||[]).join(" × ")} см внутри · тара ${b.tare_g??"?"} г`)).join("")||"Снимок коробок не сохранён для этого заказа"}
+      ${line("Наружные габариты общего места",dims(p))}${line("Полный вес с упаковкой",p.weight?`${p.weight} г`:"Не сохранён")}${line("Количество мест",plan.places??"Не сохранено")}
+      <h3>СДЭК</h3>${line("UUID",o.cdek_order_uuid||"Ещё не получен")}${line("Номер заявки",payload.number||`LAVKA-${id}`)}${line("Состояние запроса",s.state||"Нет сохранённого ответа")}${s.error?line("Ошибка",s.error):""}
+      ${line("Переданные габариты",dims(sent))}${line("Переданный вес",sent.weight?`${sent.weight} г`:"Для старого отправления запрос не сохранён")}
+      <h3>Оплата</h3>${line("Провайдер",o.payment_provider)}${line("ID платежа",o.payment_id)}${line("Оплачено в заказе",o.paid_at||"Ожидает подтверждения")}${line("Последний ответ ЮKassa",payment.status||"Проверка ещё не выполнялась")}${line("Регистрация чека",payment.receipt_registration||"Нет сохранённого статуса")}
+      <button class="btn gold" data-sync-delivery>Проверить оплату и отправление</button></div>`);
+    d.querySelector("[data-close-delivery]").onclick=()=>d.remove();
+    d.querySelector("[data-sync-delivery]").onclick=async e=>{
+      e.target.disabled=true;
+      try{await api(`/api/admin/orders/${id}/sync-delivery`,{method:"POST"});d.remove();await lavkaDeliveryOpen(id);toast("Данные обновлены");}
+      catch(err){toast(err.message);e.target.disabled=false;}
+    };
+  }catch(e){toast(e.message);}
+}
