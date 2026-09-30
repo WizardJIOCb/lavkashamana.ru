@@ -1303,13 +1303,10 @@ def product_documents():
 
 # LAVKA_PRODUCT_DOCUMENTS_V1_END
 
-app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')
-
-
-# LAVKA_PACKING_V1: admin-only packaging settings and saved assembly plans.
 @app.get('/api/admin/packing')
 def admin_packing_get(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     return packing.config_for(db)
+
 
 @app.put('/api/admin/packing')
 def admin_packing_update(body: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
@@ -1318,9 +1315,18 @@ def admin_packing_update(body: dict, admin: User = Depends(require_admin), db: S
     db.commit()
     return value
 
+
 @app.get('/api/admin/orders/{order_id}/packing')
 def admin_order_packing(order_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     order = db.get(Order, order_id)
     if not order:
         raise HTTPException(404, 'Заказ не найден')
     return packing.saved_plan(db, order)
+
+
+app.mount('/', StaticFiles(directory=ROOT / 'static', html=True), name='static')
+
+
+# LAVKA_PACKING_V1: admin-only packaging settings and saved assembly plans.
+
+
