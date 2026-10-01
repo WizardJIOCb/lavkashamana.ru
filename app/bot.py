@@ -172,7 +172,7 @@ def _max_inline_keyboard() -> dict:
                     {
                         "type": "link",
                         "text": "🛒 Лавка в ТГ",
-                        "url": "https://t.me/ShamanLavkaBot?startapp",
+                        "url": "https://t.me/Lavkashamanbot?startapp",
                     }
                 ],
                 [

@@ -2,6 +2,7 @@
 import itertools
 import json
 import math
+import re
 import time
 from fastapi import HTTPException
 
@@ -221,13 +222,32 @@ def pack_items(items, config):
             "config": config, "places": 1}
 
 
+def product_order_name(p):
+    name = str(getattr(p, "name", "") or "").strip()
+    raw = str(getattr(p, "description", "") or "")
+    m = re.search(r"\[\[(?:LV4|VARIANT):([^|\]]+)\|([0-9.]+)\|(g|ml|pcs)\]\]", raw)
+    if not m:
+        return name
+    amount = float(m.group(2))
+    unit = m.group(3)
+    def num(v):
+        return str(int(v)) if float(v).is_integer() else ("%g" % v).replace(".", ",")
+    if unit == "ml" and amount >= 1000:
+        label = num(amount / 1000) + " л"
+    elif unit == "g" and amount >= 1000:
+        label = num(amount / 1000) + " кг"
+    else:
+        label = num(amount) + " " + {"g": "г", "ml": "мл", "pcs": "шт."}[unit]
+    suffix = " — " + label
+    return name if name.endswith(suffix) else name + suffix
+
 def plan_for(db, lines):
     items = []
     for p, qty in lines:
         flags = product_flags(db, p.id)
         if not flags.get("ready"):
             raise HTTPException(400, "Для расчёта доставки заполните размеры и вес фасовки: " + p.name)
-        items.append({"product_id": p.id, "name": p.name,
+        items.append({"product_id": p.id, "name": product_order_name(p),
                       "qty": int(qty), "cost": float(p.price),
                       "weight_g": int(p.weight_g), "length_cm": int(p.length_cm),
                       "width_cm": int(p.width_cm), "height_cm": int(p.height_cm),

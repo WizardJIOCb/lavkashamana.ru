@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     database_url: str = 'sqlite:///./shaman.db'
 
     bot_token: str = ''
-    bot_username: str = 'ShamanLavkaBot'
+    bot_username: str = 'Lavkashamanbot'
     max_bot_token: str = ''
     max_bot_username: str = 'id026509411367_bot'
     max_channel_id: int = 0
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     cdek_from_region: str = 'Республика Башкортостан'
     cdek_from_country: str = 'RU'
     cdek_shipment_point: str = ''
+
+    pochta_api_base: str = 'https://otpravka-api.pochta.ru'
+    pochta_auth_token: str = ''
+    pochta_user_auth_key: str = ''
 
     default_package_length_cm: int = 15
     default_package_width_cm: int = 20

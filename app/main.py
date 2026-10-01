@@ -880,6 +880,283 @@ async def create_cdek_shipment(db: Session, order: Order):
     return uuid
 
 
+async def create_pochta_shipment(db: Session, order: Order):
+    if (
+        order.delivery_provider != 'pochta'
+        or not pochta.configured
+    ):
+        return None
+
+    from sqlalchemy import text
+
+    lock_connection = db.get_bind().connect()
+    locked = False
+    lock_params = {'g': 813009, 'i': int(order.id)}
+
+    try:
+        locked = bool(
+            lock_connection.execute(
+                text('SELECT pg_try_advisory_lock(:g, :i)'),
+                lock_params,
+            ).scalar()
+        )
+        if not locked:
+            raise HTTPException(
+                409,
+                'Отправление Почты России уже обрабатывается'
+            )
+
+        record_key = 'pochta:' + str(order.id)
+        saved = packing.get_record(db, record_key) or {}
+
+        if saved.get('state') == 'submitted':
+            return saved.get('response')
+
+        if saved.get('state') in {'sending', 'uncertain'}:
+            raise HTTPException(
+                409,
+                saved.get('error')
+                or 'Нужно проверить заказ в кабинете Почты России перед повторной отправкой'
+            )
+
+        plan = packing.saved_plan(db, order)
+        package = plan["package"]
+
+        name_parts = str(order.customer_name or '').split()
+        if len(name_parts) < 2:
+            raise RuntimeError(
+                'POCHTA: ФИО получателя заполнено не полностью'
+            )
+
+        surname = name_parts[0]
+        given_name = name_parts[1]
+        middle_name = ' '.join(name_parts[2:]).strip()
+
+        phone = ''.join(
+            ch for ch in str(order.phone or '')
+            if ch.isdigit()
+        )
+        if len(phone) == 10:
+            phone = '7' + phone
+        elif len(phone) == 11 and phone.startswith('8'):
+            phone = '7' + phone[1:]
+
+        if len(phone) != 11:
+            raise RuntimeError(
+                'POCHTA: некорректный телефон получателя'
+            )
+
+        postal_code = ''.join(
+            ch for ch in str(order.postal_code or '')
+            if ch.isdigit()
+        )
+        if len(postal_code) != 6:
+            raise RuntimeError(
+                'POCHTA: некорректный индекс получателя'
+            )
+
+        office = await pochta.postoffice_by_index(postal_code)
+
+        if order.delivery_type == 'courier':
+            raw_address = ', '.join(
+                str(x).strip()
+                for x in [
+                    postal_code,
+                    order.city_name,
+                    order.address,
+                ]
+                if x
+            )
+        elif order.delivery_type == 'poste_restante':
+            raw_address = ', '.join(
+                str(x).strip()
+                for x in [
+                    postal_code,
+                    order.city_name
+                    or office.get('settlement'),
+                    'до востребования',
+                ]
+                if x
+            )
+        else:
+            raw_address = ', '.join(
+                str(x).strip()
+                for x in [
+                    office.get('region'),
+                    office.get('settlement'),
+                    office.get('address-source'),
+                ]
+                if x
+            )
+
+        cleaned_rows = await pochta.clean_address(raw_address)
+        cleaned = (
+            cleaned_rows[0]
+            if isinstance(cleaned_rows, list) and cleaned_rows
+            else {}
+        )
+
+        is_demand = order.delivery_type == 'poste_restante'
+
+        place_to = (
+            cleaned.get('place')
+            or cleaned.get('settlement')
+            or office.get('settlement')
+            or order.city_name
+        )
+
+        street_to = None if is_demand else (
+            cleaned.get('street')
+            or office.get('address-source')
+            or order.address
+        )
+
+        if not place_to or (not is_demand and not street_to):
+            raise RuntimeError(
+                'POCHTA: не удалось определить адрес получателя'
+            )
+
+        mail_type = (
+            'EMS'
+            if order.delivery_type == 'courier'
+            else 'POSTAL_PARCEL'
+        )
+
+        item = {
+            'address-type-to': (
+                'DEMAND'
+                if is_demand
+                else 'DEFAULT'
+            ),
+            'mail-category': 'ORDINARY',
+            'mail-direct': 643,
+            'mail-type': mail_type,
+            'mass': int(package['weight']),
+            'dimension': {
+                'length': int(package['length']),
+                'width': int(package['width']),
+                'height': int(package['height']),
+            },
+            'order-num': f'LAVKA-{order.id}',
+            'recipient-name': str(order.customer_name),
+            'given-name': given_name,
+            'surname': surname,
+            'tel-address': phone,
+            'index-to': int(postal_code),
+            'postoffice-code': POCHTA_SENDER_INDEX,
+            'place-to': str(place_to),
+            'transport-type': 'SURFACE',
+        }
+
+        if middle_name:
+            item['middle-name'] = middle_name
+
+        if street_to:
+            item['street-to'] = str(street_to)
+
+        optional_map = {
+            'region': 'region-to',
+            'house': 'house-to',
+            'room': 'room-to',
+            'corpus': 'corpus-to',
+            'building': 'building-to',
+            'letter': 'letter-to',
+            'slash': 'slash-to',
+            'area': 'area-to',
+        }
+        for source, target in optional_map.items():
+            value = cleaned.get(source)
+            if value not in (None, ''):
+                item[target] = str(value)
+
+        payload = [item]
+
+        packing.put_record(
+            db,
+            record_key,
+            {
+                'state': 'sending',
+                'payload': payload,
+                'error': None,
+                'attempted_at': datetime.utcnow().isoformat(),
+            },
+        )
+        db.commit()
+
+        try:
+            result = await pochta.create_order(payload)
+        except Exception as exc:
+            db.rollback()
+            packing.put_record(
+                db,
+                record_key,
+                {
+                    'state': 'uncertain',
+                    'payload': payload,
+                    'error': (
+                        'Нет подтверждённого ответа Почты России. '
+                        'Проверьте заказ LAVKA-'
+                        + str(order.id)
+                        + ' в кабинете перед повторной отправкой. '
+                        + str(getattr(exc, 'detail', exc))[:500]
+                    ),
+                },
+            )
+            db.commit()
+            raise
+
+        errors = None
+        if isinstance(result, dict):
+            errors = result.get('errors') or result.get('error')
+        elif isinstance(result, list):
+            bad = [
+                row for row in result
+                if isinstance(row, dict)
+                and (row.get('errors') or row.get('error'))
+            ]
+            errors = bad or None
+
+        if errors:
+            packing.put_record(
+                db,
+                record_key,
+                {
+                    'state': 'rejected',
+                    'payload': payload,
+                    'response': result,
+                    'error': str(errors)[:1000],
+                },
+            )
+            db.commit()
+            raise RuntimeError(
+                f'POCHTA rejected order: {errors}'
+            )
+
+        packing.put_record(
+            db,
+            record_key,
+            {
+                'state': 'submitted',
+                'payload': payload,
+                'response': result,
+                'error': None,
+            },
+        )
+        db.commit()
+        return result
+
+    finally:
+        if locked:
+            try:
+                lock_connection.execute(
+                    text('SELECT pg_advisory_unlock(:g, :i)'),
+                    lock_params,
+                )
+            except Exception:
+                pass
+        lock_connection.close()
+
+
 async def mark_paid(db: Session, order: Order):
     first_payment = order.status != 'paid'
     if first_payment:
@@ -911,6 +1188,16 @@ async def mark_paid(db: Session, order: Order):
             await create_cdek_shipment(db, order)
         except Exception as exc:
             print(f'CDEK CREATE ERROR order={order.id}: {exc}')
+
+    if (
+        order.delivery_provider == 'pochta'
+        and pochta.configured
+        and first_payment
+    ):
+        try:
+            await create_pochta_shipment(db, order)
+        except Exception as exc:
+            print(f'POCHTA CREATE ERROR order={order.id}: {exc}')
 
     return order
 

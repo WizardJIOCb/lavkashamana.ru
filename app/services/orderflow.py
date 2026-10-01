@@ -23,7 +23,12 @@ def install(n):
     original_paid, original_ship = n["mark_paid"], n["create_cdek_shipment"]
 
     def record(db, order):
-        return packing.get_record(db, "ship:" + str(order.id)) or {}
+        prefix = (
+            "pochta:"
+            if getattr(order, "delivery_provider", None) == "pochta"
+            else "ship:"
+        )
+        return packing.get_record(db, prefix + str(order.id)) or {}
 
     def save(db, order, value):
         packing.put_record(db, "ship:" + str(order.id), value)
@@ -127,6 +132,12 @@ def install(n):
             db.refresh(order)
             if order.delivery_provider == "cdek" and not order.cdek_order_uuid and order.paid_at:
                 await ship(db, order)
+            elif order.delivery_provider == "pochta" and order.paid_at:
+                data = record(db, order)
+                if data.get("state") not in ("submitted", "sending", "uncertain"):
+                    creator = n.get("create_pochta_shipment")
+                    if creator:
+                        await creator(db, order)
             return result
 
     def detail(db, order):
@@ -176,8 +187,15 @@ def install(n):
             if ok and order.status in ("awaiting_payment", "pending", "created", "new"):
                 await paid(db, order)
         db.refresh(order)
-        if order.paid_at and order.status not in ("cancelled", "canceled", "cancelled_refunded", "refunded", "failed", "payment_failed") and order.delivery_provider == "cdek" and not order.cdek_order_uuid:
-            await ship(db, order)
+        if order.paid_at and order.status not in ("cancelled", "canceled", "cancelled_refunded", "refunded", "failed", "payment_failed"):
+            if order.delivery_provider == "cdek" and not order.cdek_order_uuid:
+                await ship(db, order)
+            elif order.delivery_provider == "pochta":
+                data = record(db, order)
+                if data.get("state") not in ("submitted", "sending", "uncertain"):
+                    creator = n.get("create_pochta_shipment")
+                    if creator:
+                        await creator(db, order)
 
     @app.post("/api/admin/orders/{order_id}/sync-delivery")
     async def sync_route(order_id: int, user=Depends(admin), db=Depends(get_db)):
