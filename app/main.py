@@ -75,12 +75,20 @@ async def lavka_intro_gate(request: Request, call_next):
     if (
         request.method == "GET"
         and request.url.path == "/"
-        and not request.url.query
+        and request.query_params.get("intro_done") != "1"
     ):
+        qs = request.url.query
+        target = "/launch.html?v=1790950718"
+        if qs:
+            target += "&" + qs
         return RedirectResponse(
-            url="/launch.html?v=1790949915",
+            url=target,
             status_code=307,
-            headers={"Cache-Control":"no-store, no-cache, must-revalidate"}
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
         )
     return await call_next(request)
 

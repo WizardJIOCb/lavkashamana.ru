@@ -70,9 +70,10 @@ html,body{
  }catch(e){}
 
  function openLavka(){
-   let q=location.search||"";
-   let h=location.hash||"";
-   location.replace("/"+q+h);
+   var q=new URLSearchParams(location.search);
+   q.delete("v");
+   q.set("intro_done","1");
+   location.replace("/?"+q.toString()+location.hash);
  }
 
  function play(){
