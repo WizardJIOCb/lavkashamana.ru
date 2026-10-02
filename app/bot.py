@@ -462,7 +462,7 @@ async def main():
     async def start(message: Message):
         text = message.text or ""
         payload = text.split(maxsplit=1)[1] if len(text.split(maxsplit=1)) > 1 else ""
-        url = settings.app_url.rstrip("/") + "/launch.html?v=1790950718"
+        url = settings.app_url.rstrip("/") + "/intro-launch-1790951641.html?v=1790951641"
         if payload.startswith("ref_") and payload[4:].isdigit():
             url += f"?ref={payload[4:]}"
         kb = InlineKeyboardMarkup(
@@ -522,7 +522,7 @@ async def main():
     await bot.set_chat_menu_button(
         menu_button=MenuButtonWebApp(
             text="Лавка шамана",
-            web_app=WebAppInfo(url=settings.app_url.rstrip("/") + "/launch.html?v=1790950718"),
+            web_app=WebAppInfo(url=settings.app_url.rstrip("/") + "/intro-launch-1790951641.html?v=1790951641"),
         )
     )
     await dp.start_polling(bot, allowed_updates=["message","channel_post","edited_channel_post"])
