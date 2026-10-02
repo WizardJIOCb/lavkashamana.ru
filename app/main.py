@@ -71,12 +71,12 @@ def product_json(p):
 
 # LAVKA_INTRO_GATE_V1
 @app.middleware("http")
-async def lavka_intro_gate(request: Request, call_next):
-    if request.method == "GET" and request.url.path == "/" and not request.query_params.get("intro_done"):
-        qs=request.url.query
-        target="/intro-launch-1790951641.html?v=1790951641" + (("&"+qs) if qs else "")
-        return RedirectResponse(url=target,status_code=307,headers={"Cache-Control":"no-store, no-cache, must-revalidate"})
-    return await call_next(request)
+async def lavka_intro_gate(request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path in {"/", "/index.html", "/launch.html"} or path.startswith("/intro-launch-"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
 
 @app.put('/api/profile')
 def update_profile(body: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
