@@ -68,6 +68,22 @@ def product_json(p):
         'height_cm': p.height_cm, 'active': p.active,
     }
 
+
+# LAVKA_INTRO_GATE_V1
+@app.middleware("http")
+async def lavka_intro_gate(request: Request, call_next):
+    if (
+        request.method == "GET"
+        and request.url.path == "/"
+        and not request.url.query
+    ):
+        return RedirectResponse(
+            url="/launch.html?v=1790949915",
+            status_code=307,
+            headers={"Cache-Control":"no-store, no-cache, must-revalidate"}
+        )
+    return await call_next(request)
+
 @app.put('/api/profile')
 def update_profile(body: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     allowed = {
