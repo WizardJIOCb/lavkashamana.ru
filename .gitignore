@@ -14,3 +14,7 @@ static-backup-*/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+lavka-full-review.txt
+lavka-current.tar.gz
+*.variant-name-backup-*
+backups/

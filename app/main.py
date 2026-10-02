@@ -1168,11 +1168,29 @@ async def mark_paid(db: Session, order: Order):
         order.status = 'paid'
         order.paid_at = datetime.utcnow()
         items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+        product_ids = sorted({int(line.product_id) for line in items if line.product_id})
+        locked_products = {}
+        if product_ids:
+            rows = (
+                db.query(Product)
+                .filter(Product.id.in_(product_ids))
+                .with_for_update()
+                .all()
+            )
+            locked_products = {int(p.id): p for p in rows}
+
         for line in items:
-            if line.product_id:
-                product = db.get(Product, line.product_id)
-                if product:
-                    product.stock = max(0, product.stock - line.qty)
+            if not line.product_id:
+                continue
+            product = locked_products.get(int(line.product_id))
+            if not product:
+                raise HTTPException(409, f"Товар #{line.product_id} не найден при оплате")
+            if int(product.stock or 0) < int(line.qty or 0):
+                raise HTTPException(
+                    409,
+                    f"Недостаточно остатка для товара: {product.name}"
+                )
+            product.stock = int(product.stock or 0) - int(line.qty or 0)
         if order.promo_code:
             promo = db.query(PromoCode).filter(PromoCode.code == order.promo_code).first()
             if promo:
