@@ -409,12 +409,53 @@ async def _capture_discussion_forward(message, bot: Bot):
 
 
 
+
+# COMMENT_BUTTON_V2
+async def _comment_button_channel_post(message, bot):
+    username = (getattr(message.chat, "username", None) or "").lower()
+    if username and username != "shamangrib":
+        return
+
+    comment_url = f"https://t.me/ShamanGrib/{message.message_id}?comment=1"
+
+    helper = globals().get("_attach_channel_buttons")
+    if helper:
+        try:
+            await helper(
+                bot,
+                message.message_id,
+                comment_url=comment_url,
+            )
+            return
+        except TypeError:
+            pass
+
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💬 Оставить комментарий",
+                    url=comment_url,
+                )
+            ]
+        ]
+    )
+
+    await bot.edit_message_reply_markup(
+        chat_id=message.chat.id,
+        message_id=message.message_id,
+        reply_markup=keyboard,
+    )
+
 async def main():
     if not settings.bot_token:
         raise RuntimeError("BOT_TOKEN is not configured")
 
     bot = Bot(settings.bot_token)
     dp = Dispatcher()
+    dp.channel_post.register(_comment_button_channel_post)
     dp.message.register(_capture_discussion_forward, _is_discussion_forward)
 
     @dp.message(CommandStart())
