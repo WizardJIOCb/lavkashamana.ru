@@ -1183,8 +1183,19 @@ h1{
 </style>
 <script src="/screen-check.js?v=1790761083"></script>
 <script src="/desktop-layout.js?v=1790760732"></script>
+<style>
+#lavkaIntro{position:fixed;inset:0;z-index:999999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#lavkaIntro video{width:100%;height:100%;object-fit:cover;background:#000}
+#lavkaIntro.hide{opacity:0;transition:opacity .45s ease}
+</style>
 </head>
 <body>
+<div id="lavkaIntro">
+  <video id="lavkaIntroVideo" autoplay muted playsinline preload="auto">
+    <source src="/static/intro.mp4" type="video/mp4">
+  </video>
+</div>
+
   <div class="app-shell">
     <header class="hero">
       <img src="/logo.jpg" alt="Лавка Шамана" class="logo"/>
@@ -1216,5 +1227,23 @@ h1{
 
   <template id="toastTpl"><div class="toast"></div></template>
   <script src="/app-admin-v4.js?v=orders_1790783935"></script>
+<script>
+(function(){
+ const intro=document.getElementById("lavkaIntro");
+ const video=document.getElementById("lavkaIntroVideo");
+ if(!intro||!video)return;
+ let done=false;
+ function closeIntro(){
+   if(done)return;
+   done=true;
+   intro.classList.add("hide");
+   setTimeout(()=>intro.remove(),500);
+ }
+ video.addEventListener("ended",closeIntro,{once:true});
+ video.addEventListener("error",closeIntro,{once:true});
+ video.play().catch(()=>closeIntro());
+ setTimeout(closeIntro,9000);
+})();
+</script>
 </body>
 </html>
