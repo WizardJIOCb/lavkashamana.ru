@@ -1239,9 +1239,21 @@ h1{
    intro.classList.add("hide");
    setTimeout(()=>intro.remove(),500);
  }
+ video.muted=true;
+ video.defaultMuted=true;
+ video.setAttribute("muted","");
+ video.setAttribute("playsinline","");
+ video.setAttribute("webkit-playsinline","");
+
  video.addEventListener("ended",closeIntro,{once:true});
  video.addEventListener("error",closeIntro,{once:true});
- video.play().catch(()=>closeIntro());
+
+ const tryPlay=()=>video.play().catch(()=>{});
+ tryPlay();
+ video.addEventListener("loadeddata",tryPlay,{once:true});
+ document.addEventListener("touchstart",tryPlay,{once:true});
+ document.addEventListener("click",tryPlay,{once:true});
+
  setTimeout(closeIntro,9000);
 })();
 </script>
