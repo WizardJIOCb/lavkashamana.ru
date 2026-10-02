@@ -1051,12 +1051,12 @@ async function checkoutModal(){
           ? ` · ${quote.period_min??'?'}–${quote.period_max??'?'} дн.`
           : '';
 
-      const modeName=
-        quote.delivery_type==='courier'
-          ? 'EMS курьер'
-          : quote.delivery_type==='poste_restante'
-            ? 'До востребования'
-            : 'До отделения';
+      const modeName={
+        pickup:'Обычная посылка · до отделения',
+        first_class:'Посылка 1-го класса · до отделения',
+        poste_restante:'Обычная посылка · до востребования',
+        courier:'EMS · курьер до адреса'
+      }[quote.delivery_type]||quote.delivery_type;
 
       $('#deliveryNotice').textContent=
         `${modeName}: ${rub(quote.price)}${days}`;
@@ -1309,13 +1309,14 @@ async function checkoutModal(){
 
     if(provider==='pochta'){
       type.innerHTML=`
-        <option value="pickup">До отделения</option>
+        <option value="pickup">Обычная посылка · до отделения</option>
+        <option value="first_class">Посылка 1-го класса · до отделения</option>
         <option value="poste_restante">До востребования</option>
-        <option value="courier">EMS курьер</option>
+        <option value="courier">EMS · курьер до адреса</option>
       `;
 
       type.value=
-        ['pickup','poste_restante','courier']
+        ['pickup','first_class','poste_restante','courier']
           .includes(current)
             ? current
             : 'pickup';
@@ -4362,12 +4363,25 @@ async function lavkaDeliveryOpen(id){
     const s=o.shipment||{}, plan=o.packing||{}, p=plan.package||{}, payload=s.payload||{};
     const sent=Array.isArray(payload)?(payload[0]||{}):((payload.packages||[])[0]||{});
     const sentDims=sent.dimension||sent, payment=s.payment||{};
+    const lavkaProviderName=o.delivery_provider==="pochta"?"Почта России":o.delivery_provider==="cdek"?"СДЭК":(o.delivery_provider||"Не указан");
+    const lavkaModeName=o.delivery_provider==="pochta"?({
+      pickup:"Обычная посылка · до отделения",
+      first_class:"Посылка 1-го класса · до отделения",
+      poste_restante:"Обычная посылка · до востребования",
+      courier:"EMS · курьер до адреса"
+    }[o.delivery_type]||o.delivery_type):o.delivery_type;
+    const lavkaTariffName=o.delivery_provider==="pochta"?({
+      pickup:"Обычная посылка",
+      first_class:"Посылка 1-го класса",
+      poste_restante:"Обычная посылка · до востребования",
+      courier:"EMS"
+    }[o.delivery_type]||"Почта России"):(o.delivery_tariff_code||"Не выбран");
     const line=(a,b)=>`<div style="margin:8px 0"><strong>${esc(a)}:</strong> ${esc(String(b??"Не указано"))}</div>`;
     const dims=x=>[x.length,x.width,x.height].every(v=>v!=null)?[x.length,x.width,x.height].join(" × ")+" см":"Не сохранены";
     const d=modal(`<div class="section-head"><h2>Заказ №${id}</h2><button class="btn secondary" data-close-delivery>Закрыть</button></div><div style="overflow-wrap:anywhere">
       ${line("Статус",o.status)}${line("Получатель",o.customer_name)}${line("Телефон",o.phone)}${line("Email",o.email)}
-      ${line("Город",s.point_city||o.city_name)}${line("Перевозчик",o.delivery_provider)}${line("Способ",o.delivery_type)}
-      ${line("ПВЗ",o.delivery_point)}${line("Адрес ПВЗ / улица",s.point_address||o.address||"Адрес не получен")}${line("Индекс",o.postal_code)}${line("Тариф",o.delivery_tariff_code)}
+      ${line("Город",s.point_city||o.city_name)}${line("Перевозчик",lavkaProviderName)}${line("Способ",lavkaModeName)}
+      ${line("ПВЗ",o.delivery_point)}${line("Адрес ПВЗ / улица",s.point_address||o.address||"Адрес не получен")}${line("Индекс",o.postal_code)}${line("Тариф",lavkaTariffName)}
       <h3>Товары и фасовки</h3>${(o.items||[]).map(i=>line(i.name,`${i.qty} шт. × ${rub(i.unit_price)} = ${rub(i.line_total)}`)).join("")||"Состав не сохранён"}
       ${line("Товары",rub(o.items_total))}${line("Доставка",rub(o.delivery_total))}${line("Промокод",rub(o.promo_discount))}${line("Баланс",rub(o.balance_used))}${line("Итого к оплате",rub(o.total))}
       <h3>Упаковка</h3>${(plan.boxes||[]).map((b,i)=>line(`Коробка ${i+1}`,`${(b.inner_cm||[]).join(" × ")} см внутри · тара ${b.tare_g??"?"} г`)).join("")||"Снимок коробок не сохранён для этого заказа"}

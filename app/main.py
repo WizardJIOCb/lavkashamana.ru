@@ -332,6 +332,7 @@ async def _pochta_delivery_quote(
 
     if mode not in {
         'pickup',
+        'first_class',
         'poste_restante',
         'courier',
     }:
@@ -353,11 +354,12 @@ async def _pochta_delivery_quote(
 
     packing_plan = packing_plan or packing.plan_for(db, lines)
     mass = packing_plan["package"]["weight"]
-    mail_type = (
-        'EMS'
-        if mode == 'courier'
-        else 'POSTAL_PARCEL'
-    )
+    mail_type = {
+        'pickup': 'POSTAL_PARCEL',
+        'first_class': 'PARCEL_CLASS_1',
+        'poste_restante': 'POSTAL_PARCEL',
+        'courier': 'EMS',
+    }[mode]
 
     result = await pochta.tariff({
         'index-from': POCHTA_SENDER_INDEX,
@@ -614,7 +616,7 @@ async def create_order(body: OrderIn, user: User = Depends(get_current_user), db
             if x
         )
 
-        if body.delivery_type == 'pickup':
+        if body.delivery_type in ('pickup', 'first_class'):
             order_address = (
                 office_address
                 or f'Индекс {postal_code}'
@@ -1016,11 +1018,14 @@ async def create_pochta_shipment(db: Session, order: Order):
                 'POCHTA: не удалось определить адрес получателя'
             )
 
-        mail_type = (
-            'EMS'
-            if order.delivery_type == 'courier'
-            else 'POSTAL_PARCEL'
-        )
+        mail_type = {
+            'pickup': 'POSTAL_PARCEL',
+            'first_class': 'PARCEL_CLASS_1',
+            'poste_restante': 'POSTAL_PARCEL',
+            'courier': 'EMS',
+        }.get(order.delivery_type)
+        if not mail_type:
+            raise RuntimeError('POCHTA: неизвестный способ доставки')
 
         item = {
             'address-type-to': (
