@@ -1,11 +1,8 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <meta name="theme-color" content="#f3ead8"/>
   <title>Лавка Шамана</title>
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
@@ -1186,102 +1183,9 @@ h1{
 </style>
 <script src="/screen-check.js?v=1790761083"></script>
 <script src="/desktop-layout.js?v=1790760732"></script>
-<style>
-#lavkaIntro{
- position:fixed;inset:0;z-index:2147483647;
- background:#000;overflow:hidden;
- display:flex;align-items:center;justify-content:center;
- opacity:1;visibility:visible;
-}
-#lavkaIntro video{
- position:absolute;inset:0;width:100%;height:100%;
- object-fit:cover;background:#000;
-}
-#lavkaIntroFallback{
- position:absolute;inset:0;z-index:2;
- display:flex;flex-direction:column;
- align-items:center;justify-content:center;
- background:#000;color:#fff;text-align:center;
- transition:opacity .25s ease;
-}
-#lavkaIntro.playing #lavkaIntroFallback{opacity:0;pointer-events:none}
-#lavkaIntro.closing{opacity:0;transition:opacity .45s ease}
-.lavkaIntroTitle{font-size:28px;font-weight:700;letter-spacing:.04em}
-.lavkaIntroTap{font-size:14px;opacity:.75;margin-top:12px}
-</style>
-
-<script id="lavkaTelegramFullscreen">
-(function(){
- function tgFullscreen(){
-   try{
-     var tg=window.Telegram&&window.Telegram.WebApp;
-     if(!tg)return;
-     tg.ready();
-     tg.expand();
-     try{tg.setHeaderColor("#000000");}catch(e){}
-     try{tg.setBackgroundColor("#000000");}catch(e){}
-     try{tg.setBottomBarColor("#000000");}catch(e){}
-     try{if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();}catch(e){}
-     try{if(tg.requestFullscreen&&!tg.isFullscreen)tg.requestFullscreen();}catch(e){}
-   }catch(e){}
- }
- tgFullscreen();
- document.addEventListener("DOMContentLoaded",tgFullscreen,{once:true});
- window.addEventListener("load",tgFullscreen,{once:true});
- setTimeout(tgFullscreen,250);
- setTimeout(tgFullscreen,800);
-})();
-</script>
-<style id="lavkaFullscreenIntroCss">
-html,body{margin:0!important;padding:0!important;min-width:100%!important}
-#lavkaIntro{
- position:fixed!important;
- top:0!important;right:0!important;bottom:0!important;left:0!important;
- width:100vw!important;
- height:100vh!important;
- height:100dvh!important;
- min-width:100vw!important;
- min-height:100vh!important;
- min-height:100dvh!important;
- margin:0!important;padding:0!important;
- z-index:2147483647!important;
- background:#000!important;
- overflow:hidden!important;
- transform:none!important;
-}
-#lavkaIntroVideo{
- position:absolute!important;
- top:0!important;left:0!important;
- width:100%!important;height:100%!important;
- min-width:100%!important;min-height:100%!important;
- object-fit:cover!important;
- object-position:center center!important;
- background:#000!important;
-}
-#lavkaIntroFallback{
- position:absolute!important;
- inset:0!important;
- width:100%!important;height:100%!important;
- display:flex!important;
- align-items:center!important;
- justify-content:center!important;
- flex-direction:column!important;
- background:#000!important;
-}
-</style>
 </head>
 <body>
-<div id="lavkaIntro" aria-label="Заставка Лавки Шамана">
-  <video id="lavkaIntroVideo" muted autoplay playsinline webkit-playsinline preload="auto">
-    <source src="/intro.mp4?v=1790949370" type="video/mp4">
-  </video>
-  <div id="lavkaIntroFallback">
-    <div class="lavkaIntroTitle">Лавка Шамана</div>
-    <div class="lavkaIntroTap">Коснитесь экрана</div>
-  </div>
-</div>
-
-<div class="app-shell">
+  <div class="app-shell">
     <header class="hero">
       <img src="/logo.jpg" alt="Лавка Шамана" class="logo"/>
       <div>
@@ -1312,69 +1216,5 @@ html,body{margin:0!important;padding:0!important;min-width:100%!important}
 
   <template id="toastTpl"><div class="toast"></div></template>
   <script src="/app-admin-v4.js?v=orders_1790783935"></script>
-<script>
-(function(){
- const box=document.getElementById("lavkaIntro");
- const video=document.getElementById("lavkaIntroVideo");
- if(!box||!video)return;
-
- let closed=false;
- let started=false;
-
- const closeIntro=()=>{
-   if(closed)return;
-   closed=true;
-   box.classList.add("closing");
-   setTimeout(()=>box.remove(),500);
- };
-
- const startVideo=()=>{
-   if(closed)return;
-   video.muted=true;
-   video.defaultMuted=true;
-   video.setAttribute("muted","");
-   video.setAttribute("playsinline","");
-   video.setAttribute("webkit-playsinline","");
-   const promise=video.play();
-   if(promise&&promise.then){
-     promise.then(()=>{
-       started=true;
-       box.classList.add("playing");
-     }).catch(()=>{});
-   }
- };
-
- video.addEventListener("playing",()=>{
-   started=true;
-   box.classList.add("playing");
- });
-
- video.addEventListener("ended",closeIntro,{once:true});
-
- video.addEventListener("error",()=>{
-   setTimeout(closeIntro,2500);
- },{once:true});
-
- box.addEventListener("pointerdown",startVideo);
- box.addEventListener("touchstart",startVideo,{passive:true});
- box.addEventListener("click",startVideo);
-
- if(document.readyState==="loading"){
-   document.addEventListener("DOMContentLoaded",startVideo,{once:true});
- }else{
-   startVideo();
- }
-
- video.addEventListener("loadeddata",startVideo,{once:true});
- video.addEventListener("canplay",startVideo,{once:true});
-
- setTimeout(()=>{
-   if(!started) startVideo();
- },500);
-
- setTimeout(closeIntro,12000);
-})();
-</script>
-
 </body>
 </html>
